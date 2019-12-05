@@ -622,8 +622,9 @@ public class WorldUtils {
         int posX = tracePos.getX();
         int posY = tracePos.getY();
         int posZ = tracePos.getZ();
-        int rangeX = 3;
-        int rangeY = 3;
+        int rangeX = Configs.Generic.EASY_PLACE_MODE_RANGE_X.getIntegerValue();
+        int rangeY = Configs.Generic.EASY_PLACE_MODE_RANGE_Y.getIntegerValue();
+        int rangeZ = Configs.Generic.EASY_PLACE_MODE_RANGE_Z.getIntegerValue();
         Direction[] facingSides = Direction.getEntityFacingOrder(mc.player);
 
         Direction primaryFacing = facingSides[0];
@@ -633,12 +634,21 @@ public class WorldUtils {
             horizontalFacing = facingSides[index++];
         }
 
-        int rangeZ = 3;
         World world = SchematicWorldHandler.getSchematicWorld();
         for (int x = -rangeX; x <= rangeX; x++) {
             for (int y = -rangeY; y <= rangeY; y++) {
                 for (int z = -rangeZ; z <= rangeZ; z++) {
-                    BlockPos pos = new BlockPos(posX + x, Math.min(Math.max(posY + y, 0), 255), posZ + z);
+                    int newX = posX + x;
+                    int newY = Math.min(Math.max(posY + y, 0), 255);
+                    int newZ = posZ + z;
+
+                    int dx = newX - (int) mc.player.x;
+                    int dy = newY - (int) mc.player.y;
+                    int dz = newZ - (int) mc.player.z;
+
+                    if (dx * dx + dy * dy + dz * dz > 6 * 6)
+                        continue;
+                    BlockPos pos = new BlockPos(newX, newY, newZ);
 
                     BlockState stateSchematic = world.getBlockState(pos);
 
