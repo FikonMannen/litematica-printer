@@ -666,7 +666,8 @@ public class WorldUtils {
                         // Abort if there is already a block in the target position
                         if (easyPlaceBlockChecksCancel(stateSchematic, stateClient, mc.player, stack)) {
 
-                            if (!stateClient.isAir() && !mc.player.isSneaking()) {
+                            if (!stateClient.isAir() && !mc.player.isSneaking()
+                                    && !easyPlaceIsPositionCached(pos, true)) {
                                 Block cBlock = stateClient.getBlock();
                                 Block sBlock = stateSchematic.getBlock();
 
@@ -734,6 +735,9 @@ public class WorldUtils {
                                             mc.interactionManager.interactBlock(mc.player, mc.world, hand, hitResult);
 
                                         }
+                                        if (clickTimes > 0) {
+                                            cacheEasyPlacePosition(pos, true);
+                                        }
                                     }
                                 }
                             }
@@ -741,7 +745,7 @@ public class WorldUtils {
                             continue;
                         }
 
-                        if (easyPlaceIsPositionCached(pos)) {
+                        if (easyPlaceIsPositionCached(pos, false)) {
                             continue;
                         }
                         Direction facing = fi.dy.masa.malilib.util.BlockUtils
@@ -848,7 +852,7 @@ public class WorldUtils {
 
                         // Mark that this position has been handled (use the non-offset position that is
                         // checked above)
-                        cacheEasyPlacePosition(pos);
+                        cacheEasyPlacePosition(pos, false);
 
                         BlockHitResult hitResult = new BlockHitResult(hitPos, side, npos, false);
 
@@ -1339,7 +1343,7 @@ public class WorldUtils {
         return true;
     }
 
-    public static boolean easyPlaceIsPositionCached(BlockPos pos) {
+    public static boolean easyPlaceIsPositionCached(BlockPos pos, boolean useClicked) {
         long currentTime = System.nanoTime();
         boolean cached = false;
 
@@ -1351,7 +1355,9 @@ public class WorldUtils {
                 EASY_PLACE_POSITIONS.remove(i);
                 --i;
             } else if (val.getPos().equals(pos)) {
-                cached = true;
+                if (!useClicked || val.hasClicked) {
+                    cached = true;
+                }
 
                 // Keep checking and removing old entries if there are a fair amount
                 if (EASY_PLACE_POSITIONS.size() < 16) {
@@ -1363,14 +1369,18 @@ public class WorldUtils {
         return cached;
     }
 
-    private static void cacheEasyPlacePosition(BlockPos pos) {
-        EASY_PLACE_POSITIONS.add(new PositionCache(pos, System.nanoTime(), 2000000000));
+    private static void cacheEasyPlacePosition(BlockPos pos, boolean useClicked) {
+        PositionCache item = new PositionCache(pos, System.nanoTime(), useClicked ? 1000000000 : 2000000000);
+        if (useClicked)
+            item.hasClicked = true;
+        EASY_PLACE_POSITIONS.add(item);
     }
 
     public static class PositionCache {
         private final BlockPos pos;
         private final long time;
         private final long timeout;
+        public boolean hasClicked = false;
 
         private PositionCache(BlockPos pos, long time, long timeout) {
             this.pos = pos;
