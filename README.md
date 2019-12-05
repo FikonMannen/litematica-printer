@@ -7,7 +7,7 @@ For compiled builds (= downloads), see http://minecraft.curseforge.com/projects/
 
 ## Printer
 
-THe printer feature is like the printer feature from Schematica. In fact, I used their code as reference (credits to them). To use it, just turn on easyPlaceMode and easyPlaceActivationHold and right click on a schematic block.
+The printer feature is like the printer feature from Schematica. In fact, I used their code as reference (credits to them). To use it, just turn on easyPlaceMode and easyPlaceActivationHold and right click on a schematic block.
 
 Compiling
 =========
