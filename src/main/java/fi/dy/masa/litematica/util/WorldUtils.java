@@ -656,7 +656,7 @@ public class WorldUtils {
                         // Abort if there is already a block in the target position
                         if (easyPlaceBlockChecksCancel(stateSchematic, stateClient, mc.player, stack)) {
 
-                            if (!stateClient.isAir()) {
+                            if (!stateClient.isAir() && !mc.player.isSneaking()) {
                                 Block cBlock = stateClient.getBlock();
                                 Block sBlock = stateSchematic.getBlock();
 
