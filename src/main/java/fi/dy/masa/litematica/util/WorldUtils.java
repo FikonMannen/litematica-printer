@@ -96,7 +96,7 @@ import net.minecraft.block.WallRedstoneTorchBlock;
 import net.minecraft.block.WallSignBlock;
 import net.minecraft.block.WallTorchBlock;
 import net.minecraft.block.BellBlock;
-import net.minecraft.block.GrindstoneBlock
+import net.minecraft.block.GrindstoneBlock;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
