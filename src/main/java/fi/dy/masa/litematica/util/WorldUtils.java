@@ -187,13 +187,14 @@ public class WorldUtils {
     }
     
     public static boolean convertSchematicaSchematicToLitematicaSchematic(
-        File inputDir, String inputFileName, File outputDir, String outputFileName, boolean ignoreEntities, boolean override, IStringConsumer feedback)
-    { 
-    LitematicaSchematic litematicaSchematic = convertSchematicaSchematicToLitematicaSchematic(inputDir, inputFileName, ignoreEntities, feedback);
-    return litematicaSchematic != null && litematicaSchematic.writeToFile(outputDir, outputFileName, override);
+            File inputDir, String inputFileName, File outputDir, String outputFileName, boolean ignoreEntities, boolean override, IStringConsumer feedback)
+    {
+        LitematicaSchematic litematicaSchematic = convertSchematicaSchematicToLitematicaSchematic(inputDir, inputFileName, ignoreEntities, feedback);
+        return litematicaSchematic != null && litematicaSchematic.writeToFile(outputDir, outputFileName, override);
     }
 
-        public static LitematicaSchematic convertSchematicaSchematicToLitematicaSchematic(File inputDir, String inputFileName,
+    @Nullable
+    public static LitematicaSchematic convertSchematicaSchematicToLitematicaSchematic(File inputDir, String inputFileName,
             boolean ignoreEntities, IStringConsumer feedback)
     {
         SchematicaSchematic schematic = SchematicaSchematic.createFromFile(new File(inputDir, inputFileName));
@@ -1375,7 +1376,8 @@ public class WorldUtils {
         return true;
     }
 
-    public static boolean easyPlaceIsPositionCached(BlockPos pos, boolean useClicked) {
+    public static boolean easyPlaceIsPositionCached(BlockPos pos, boolean useClicked)
+    {
         long currentTime = System.nanoTime();
         boolean cached = false;
 
@@ -1403,7 +1405,8 @@ public class WorldUtils {
         return cached;
     }
 
-    private static void cacheEasyPlacePosition(BlockPos pos, boolean useClicked) {
+    private static void cacheEasyPlacePosition(BlockPos pos, boolean useClicked)
+    {
         PositionCache item = new PositionCache(pos, System.nanoTime(), useClicked ? 1000000000 : 2000000000);
        // TODO: Create a separate cache for clickable items, as this just makes duplicates
         if (useClicked)
@@ -1411,23 +1414,27 @@ public class WorldUtils {
         EASY_PLACE_POSITIONS.add(item);
     }
 
-    public static class PositionCache {
+    public static class PositionCache
+    {
         private final BlockPos pos;
         private final long time;
         private final long timeout;
         public boolean hasClicked = false;
 
-        private PositionCache(BlockPos pos, long time, long timeout) {
+        private PositionCache(BlockPos pos, long time, long timeout)
+        {
             this.pos = pos;
             this.time = time;
             this.timeout = timeout;
         }
 
-        public BlockPos getPos() {
+        public BlockPos getPos()
+        {
             return this.pos;
         }
 
-        public boolean hasExpired(long currentTime) {
+        public boolean hasExpired(long currentTime)
+        {
             return currentTime - this.time > this.timeout;
         }
     }
