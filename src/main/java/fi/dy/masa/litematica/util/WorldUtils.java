@@ -34,6 +34,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.structure.Structure;
 import net.minecraft.structure.StructurePlacementData;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
@@ -640,6 +641,7 @@ public class WorldUtils {
         int maxInteract = Configs.Generic.EASY_PLACE_MODE_MAX_BLOCKS.getIntegerValue();
         int interact = 0;
         boolean hasPicked = false;
+        Text pickedBlock = null;
         for (int x = -rangeX; x <= rangeX; x++) 
         {
             for (int y = -rangeY; y <= rangeY; y++) 
@@ -884,10 +886,18 @@ public class WorldUtils {
                         }
 
                         // Abort if the required item was not able to be pick-block'd
-                        if (!hasPicked && doSchematicWorldPickBlock(true, mc, stateSchematic, pos) == false) {
-                            return ActionResult.FAIL;
+                        if (!hasPicked) {
+
+                            if (doSchematicWorldPickBlock(true, mc, stateSchematic, pos) == false) {
+                                return ActionResult.FAIL;
+                            }
+                            hasPicked = true;
+                            pickedBlock = stateSchematic.getBlock().getName();
+                        } else if (pickedBlock != null && !pickedBlock.equals(stateSchematic.getBlock().getName())) {
+                            continue;
                         }
-                        hasPicked = true;
+                       
+
 
                         Hand hand = EntityUtils.getUsedHandForItem(mc.player, stack);
 
