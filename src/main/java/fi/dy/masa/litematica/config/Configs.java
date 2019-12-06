@@ -37,7 +37,7 @@ public class Configs implements IConfigHandler
         public static final ConfigInteger       EASY_PLACE_MODE_RANGE_X = new ConfigInteger(    "easyPlaceModeRangeX", 3, 0, 6, "X Range for EasyPlace");
         public static final ConfigInteger       EASY_PLACE_MODE_RANGE_Y = new ConfigInteger(    "easyPlaceModeRangeY", 3, 0, 6, "Y Range for EasyPlace");
         public static final ConfigInteger       EASY_PLACE_MODE_RANGE_Z = new ConfigInteger(    "easyPlaceModeRangeZ", 3, 0, 6, "Z Range for EasyPlace");
-        public static final ConfigInteger       EASY_PLACE_MODE_MAX_BLOCKS= new ConfigInteger(    "easyPlaceModeMaxBlocks", 3, 1, 1000000, "Max blocks placeable per cycle");
+        public static final ConfigInteger       EASY_PLACE_MODE_MAX_BLOCKS= new ConfigInteger(    "easyPlaceModeMaxBlocks", 3, 1, 1000000, "Max block interactions per cycle");
         public static final ConfigBoolean       EXECUTE_REQUIRE_TOOL    = new ConfigBoolean(    "executeRequireHoldingTool", true, "Require holding an enabled tool item\nfor the executeOperation hotkey to work");
         public static final ConfigBoolean       FIX_RAIL_ROTATION       = new ConfigBoolean(    "fixRailRotation", true, "If true, then a fix is applied for the vanilla bug in rails,\nwhere the 180 degree rotations of straight north-south and\neast-west rails rotate 90 degrees counterclockwise instead >_>");
         public static final ConfigBoolean       LOAD_ENTIRE_SCHEMATICS  = new ConfigBoolean(    "loadEntireSchematics", false, "If true, then the entire schematic is always loaded at once.\nIf false, then only the part that is within the client's view distance is loaded.");

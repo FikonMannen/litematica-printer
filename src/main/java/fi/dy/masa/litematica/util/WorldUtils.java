@@ -637,8 +637,9 @@ public class WorldUtils {
         * Maybe quadtree? (I dont know how MC works)
         */
 
-        int maxPlace = Configs.Generic.EASY_PLACE_MODE_MAX_BLOCKS.getIntegerValue();
-        int placed = 0;
+        int maxInteract = Configs.Generic.EASY_PLACE_MODE_MAX_BLOCKS.getIntegerValue();
+        int interact = 0;
+        boolean hasPicked = false;
         for (int x = -rangeX; x <= rangeX; x++) 
         {
             for (int y = -rangeY; y <= rangeY; y++) 
@@ -769,6 +770,7 @@ public class WorldUtils {
                                             BlockHitResult hitResult = new BlockHitResult(hitPos, side, pos, false);
 
                                             mc.interactionManager.interactBlock(mc.player, mc.world, hand, hitResult);
+                                            interact++;
                                         }
 
                                         if (clickTimes > 0) 
@@ -882,9 +884,10 @@ public class WorldUtils {
                         }
 
                         // Abort if the required item was not able to be pick-block'd
-                        if (placed == 0 && doSchematicWorldPickBlock(true, mc, stateSchematic, pos) == false) {
+                        if (!hasPicked && doSchematicWorldPickBlock(true, mc, stateSchematic, pos) == false) {
                             return ActionResult.FAIL;
                         }
+                        hasPicked = true;
 
                         Hand hand = EntityUtils.getUsedHandForItem(mc.player, stack);
 
@@ -907,7 +910,7 @@ public class WorldUtils {
                         // pos, side, hitPos
 
                         mc.interactionManager.interactBlock(mc.player, mc.world, hand, hitResult);
-
+                        interact++;
                         if (stateSchematic.getBlock() instanceof SlabBlock
                                 && stateSchematic.get(SlabBlock.TYPE) == SlabType.DOUBLE) {
                             stateClient = mc.world.getBlockState(npos);
@@ -917,11 +920,12 @@ public class WorldUtils {
                                 side = applyPlacementFacing(stateSchematic, sideOrig, stateClient);
                                 hitResult = new BlockHitResult(hitPos, side, npos, false);
                                 mc.interactionManager.interactBlock(mc.player, mc.world, hand, hitResult);
+                                interact++;
                             }
                         }
-                        placed++;
+                       
 
-                        if (placed >= maxPlace) {
+                        if (interact >= maxInteract) {
                             return ActionResult.SUCCESS;
                         }
                        
