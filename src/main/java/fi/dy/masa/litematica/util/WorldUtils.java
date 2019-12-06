@@ -636,6 +636,9 @@ public class WorldUtils {
         * I suggest using some form of search with a built in datastructure first
         * Maybe quadtree? (I dont know how MC works)
         */
+
+        int maxPlace = Configs.Generic.EASY_PLACE_MODE_MAX_BLOCKS.getIntegerValue();
+        int placed = 0;
         for (int x = -rangeX; x <= rangeX; x++) 
         {
             for (int y = -rangeY; y <= rangeY; y++) 
@@ -879,7 +882,7 @@ public class WorldUtils {
                         }
 
                         // Abort if the required item was not able to be pick-block'd
-                        if (doSchematicWorldPickBlock(true, mc, stateSchematic, pos) == false) {
+                        if (placed == 0 && doSchematicWorldPickBlock(true, mc, stateSchematic, pos) == false) {
                             return ActionResult.FAIL;
                         }
 
@@ -916,15 +919,20 @@ public class WorldUtils {
                                 mc.interactionManager.interactBlock(mc.player, mc.world, hand, hitResult);
                             }
                         }
+                        placed++;
 
-                        return ActionResult.SUCCESS;
+                        if (placed > maxPlace) {
+                            return ActionResult.SUCCESS;
+                        }
+                       
                     }
 
                 }
             }
 
         }
-        return ActionResult.FAIL;
+
+        return (placed > 0) ? ActionResult.SUCCESS : ActionResult.FAIL;
     }
 
     /* Checks if the block can be placed in the correct orientation if player is facing a certain direction
