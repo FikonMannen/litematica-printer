@@ -936,7 +936,7 @@ public class WorldUtils {
 
         }
 
-        return (placed > 0) ? ActionResult.SUCCESS : ActionResult.FAIL;
+        return (interact > 0) ? ActionResult.SUCCESS : ActionResult.FAIL;
     }
 
     /* Checks if the block can be placed in the correct orientation if player is facing a certain direction
