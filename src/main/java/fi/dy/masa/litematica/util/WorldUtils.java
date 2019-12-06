@@ -921,7 +921,7 @@ public class WorldUtils {
                         }
                         placed++;
 
-                        if (placed > maxPlace) {
+                        if (placed >= maxPlace) {
                             return ActionResult.SUCCESS;
                         }
                        
