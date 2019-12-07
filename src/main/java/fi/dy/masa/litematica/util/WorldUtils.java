@@ -828,7 +828,7 @@ public class WorldUtils {
                         if (blockSchematic instanceof WallMountedBlock || blockSchematic instanceof TorchBlock
                                 || blockSchematic instanceof LadderBlock || blockSchematic instanceof TrapdoorBlock
                                 || blockSchematic instanceof TripwireHookBlock
-                                || blockSchematic instanceof WallSignBlock) {
+                                || blockSchematic instanceof SignBlock) {
 
 
                             /* Some blocks, especially wall mounted blocks must be placed on another for directionality to work
@@ -1115,6 +1115,8 @@ public class WorldUtils {
 
         } else if (blockSchematic instanceof WallSignBlock) {
             return stateSchematic.get(WallSignBlock.FACING);
+        } else if (blockSchematic instanceof SignBlock) {
+            return Direction.UP;
         } else if (blockSchematic instanceof WallMountedBlock) {
             WallMountLocation location = stateSchematic.get(WallMountedBlock.FACE);
             if (location == WallMountLocation.FLOOR) {
