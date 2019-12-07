@@ -20,7 +20,9 @@ import net.minecraft.block.SlabBlock;
 import net.minecraft.block.StairsBlock;
 import net.minecraft.block.TrapdoorBlock;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.enums.BedPart;
 import net.minecraft.block.enums.BlockHalf;
+import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.block.enums.SlabType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientChunkManager;
@@ -73,6 +75,7 @@ import fi.dy.masa.malilib.util.StringUtils;
 import fi.dy.masa.malilib.util.SubChunkPos;
 
 import net.minecraft.block.AbstractButtonBlock;
+import net.minecraft.block.BedBlock;
 import net.minecraft.block.ChestBlock;
 import net.minecraft.block.DispenserBlock;
 import net.minecraft.block.DoorBlock;
@@ -145,6 +148,7 @@ public class WorldUtils {
         // Horizontal directions, normal direction
         addFD(StairsBlock.class, new FacingData(1, false));
         addFD(DoorBlock.class, new FacingData(1, false));
+        addFD(BedBlock.class, new FacingData(1, false));
         addFD(FenceGateBlock.class, new FacingData(1, false));
 
         // Horizontal directions, reverse of what player is facing
@@ -795,6 +799,14 @@ public class WorldUtils {
                             FacingData facedata = getFacingData(stateSchematic);
                             if (!canPlaceFace(facedata, stateSchematic, mc.player, primaryFacing, horizontalFacing))
                                 continue;
+
+                            if (
+                                (stateSchematic.getBlock() instanceof DoorBlock && stateSchematic.get(DoorBlock.HALF) == DoubleBlockHalf.UPPER) ||
+                                (stateSchematic.getBlock() instanceof BedBlock && stateSchematic.get(BedBlock.PART) == BedPart.HEAD)
+                                
+                                ) {
+                                continue;
+                            }
                         }
 
                         // Exception for signs (edge case)
