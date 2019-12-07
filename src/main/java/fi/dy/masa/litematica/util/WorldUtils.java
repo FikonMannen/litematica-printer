@@ -43,6 +43,7 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.World;
@@ -811,7 +812,7 @@ public class WorldUtils {
 
                         // Exception for signs (edge case)
                         if (stateSchematic.getBlock() instanceof SignBlock && !(stateSchematic.getBlock() instanceof WallSignBlock)) {
-                            if ((Math.floor((mc.player.yaw + 180.0) * 16.0 / 360.0 + 0.5) % 15) != stateSchematic
+                            if ((MathHelper.floor((double)((180.0F + mc.player.yaw) * 16.0F / 360.0F) + 0.5D) & 15) != stateSchematic
                                     .get(SignBlock.ROTATION))
                                 continue;
 
