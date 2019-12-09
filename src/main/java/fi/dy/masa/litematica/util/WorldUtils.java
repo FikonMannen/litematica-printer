@@ -692,7 +692,7 @@ public class WorldUtils {
                     BlockState stateSchematic = world.getBlockState(pos);
                     BlockState stateClient = mc.world.getBlockState(pos);
 
-                    if (breakBlocks && stateSchematic != null && !stateClient.isAir()) {
+                    if (breakBlocks && stateSchematic != null && !stateClient.isAir() && dx * dx + dy * dy + dz * dz < 5 * 5) {
                         if (!stateClient.getBlock().getName().equals(stateSchematic.getBlock().getName())) {
                             mc.interactionManager.attackBlock(pos, Direction.DOWN);
                             interact++;
