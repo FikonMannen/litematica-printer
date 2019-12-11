@@ -604,8 +604,7 @@ public class WorldUtils {
         SubChunkPos cpos = new SubChunkPos(tracePos);
         List<PlacementPart> list = DataManager.getSchematicPlacementManager().getAllPlacementsTouchingSubChunk(cpos);
 
-        if (list.isEmpty())
-        {
+        if (list.isEmpty()) {
             return ActionResult.PASS;
         }
         int maxX = 0;
@@ -614,21 +613,38 @@ public class WorldUtils {
         int minX = 0;
         int minY = 0;
         int minZ = 0;
-      
+
         boolean foundBox = false;
-        for (PlacementPart part : list)
-        {
-            IntBoundingBox box = part.getBox();
-            if (box.containsPos(tracePos))
-            {
-        
-                minX = box.minX;
-                maxX = box.maxX;
-                minY = box.minY;
-                maxY = box.maxY;
-                minZ = box.minZ;
-                maxZ = box.maxZ;
-                foundBox = true;
+        for (PlacementPart part : list) {
+            IntBoundingBox pbox = part.getBox();
+            if (pbox.containsPos(tracePos)) {
+
+                ImmutableMap<String, Box> boxes = part.getPlacement()
+                        .getSubRegionBoxes(RequiredEnabled.PLACEMENT_ENABLED);
+
+                for (Box box : boxes.values()) {
+
+                    final int boxXMin = Math.min(box.getPos1().getX(), box.getPos2().getX());
+                    final int boxYMin = Math.min(box.getPos1().getY(), box.getPos2().getY());
+                    final int boxZMin = Math.min(box.getPos1().getZ(), box.getPos2().getZ());
+                    final int boxXMax = Math.max(box.getPos1().getX(), box.getPos2().getX());
+                    final int boxYMax = Math.max(box.getPos1().getY(), box.getPos2().getY());
+                    final int boxZMax = Math.max(box.getPos1().getZ(), box.getPos2().getZ());
+
+                    if (posX < boxXMin || posX > boxXMax || posY < boxYMin || posY > boxYMax || posZ < boxZMin
+                            || posZ > boxZMax)
+                        continue;
+                    minX = boxXMin;
+                    maxX = boxXMax;
+                    minY = boxYMin;
+                    maxY = boxYMax;
+                    minZ = boxZMin;
+                    maxZ = boxZMax;
+                    foundBox = true;
+
+                    break;
+                }
+
                 break;
             }
         }
@@ -637,7 +653,6 @@ public class WorldUtils {
             return ActionResult.PASS;
         }
 
-     
         int rangeX = Configs.Generic.EASY_PLACE_MODE_RANGE_X.getIntegerValue();
         int rangeY = Configs.Generic.EASY_PLACE_MODE_RANGE_Y.getIntegerValue();
         int rangeZ = Configs.Generic.EASY_PLACE_MODE_RANGE_Z.getIntegerValue();
@@ -664,27 +679,34 @@ public class WorldUtils {
         boolean hasPicked = false;
         Text pickedBlock = null;
 
-        int fromX = Math.max(posX - rangeX,minX);
-        int fromY = Math.max(posY - rangeY,minY);
-        int fromZ = Math.max(posZ - rangeZ,minZ);
+        int fromX = Math.max(posX - rangeX, minX);
+        int fromY = Math.max(posY - rangeY, minY);
+        int fromZ = Math.max(posZ - rangeZ, minZ);
 
-        int toX = Math.min(posX + rangeX,maxX);
-        int toY = Math.min(posY + rangeY,maxY);
-        int toZ = Math.min(posZ + rangeZ,maxZ);
+        int toX = Math.min(posX + rangeX, maxX);
+        int toY = Math.min(posY + rangeY, maxY);
+        int toZ = Math.min(posZ + rangeZ, maxZ);
 
-        toY = Math.max(0,Math.min(toY,255));
-        fromY = Math.max(0,Math.min(fromY,255));
+        toY = Math.max(0, Math.min(toY, 255));
+        fromY = Math.max(0, Math.min(fromY, 255));
 
+        fromX = Math.max(fromX,(int)mc.player.x - 8);
+        fromY = Math.max(fromY,(int)mc.player.y - 8);
+        fromZ = Math.max(fromZ,(int)mc.player.z - 8);
 
+        toX = Math.min(toX,(int)mc.player.x + 8);
+        toY = Math.min(toY,(int)mc.player.y + 8);
+        toZ = Math.min(toZ,(int)mc.player.z + 8);
+        
         for (int x = fromX; x <= toX; x++) {
             for (int y = fromY; y <= toY; y++) {
                 for (int z = fromZ; z <= toZ; z++) {
 
-                    int dx = x - (int) mc.player.x;
-                    int dy = y - (int) mc.player.y;
-                    int dz = z - (int) mc.player.z;
+                    double dx = mc.player.x - x - 0.5;
+                    double dy = mc.player.y - y - 0.5;
+                    double dz = mc.player.z - z - 0.5;
 
-                    if (dx * dx + dy * dy + dz * dz >= 6 * 6) // Check if within reach distance
+                    if (dx * dx + dy * dy + dz * dz > 64.0) // Check if within reach distance
                         continue;
 
                     BlockPos pos = new BlockPos(x, y, z);
@@ -692,8 +714,8 @@ public class WorldUtils {
                     BlockState stateSchematic = world.getBlockState(pos);
                     BlockState stateClient = mc.world.getBlockState(pos);
 
-                    if (breakBlocks && stateSchematic != null && !stateClient.isAir() && dx * dx + dy * dy + dz * dz < 5 * 5) {
-                        if (!stateClient.getBlock().getName().equals(stateSchematic.getBlock().getName())) {
+                    if (breakBlocks && stateSchematic != null && !stateClient.isAir()) {
+                        if (!stateClient.getBlock().getName().equals(stateSchematic.getBlock().getName()) && dx * dx + Math.pow(dy + 1.5,2) + dz * dz <= 36.0) {
                             mc.interactionManager.attackBlock(pos, Direction.DOWN);
                             interact++;
 
