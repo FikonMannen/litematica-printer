@@ -4,6 +4,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import com.mojang.blaze3d.platform.GlStateManager;
 import fi.dy.masa.litematica.gui.Icons;
+import fi.dy.masa.litematica.gui.widgets.WidgetMaterialListEntry.ButtonListener;
 import fi.dy.masa.litematica.materials.MaterialListBase;
 import fi.dy.masa.litematica.materials.MaterialListBase.SortCriteria;
 import fi.dy.masa.litematica.materials.MaterialListEntry;

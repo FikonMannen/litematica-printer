@@ -21,6 +21,8 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.BlockRenderView;
 import fi.dy.masa.litematica.config.Configs;
 import fi.dy.masa.litematica.data.DataManager;
+import fi.dy.masa.litematica.render.schematic.BlockModelRendererSchematic.AmbientOcclusionFace;
+import fi.dy.masa.litematica.render.schematic.BlockModelRendererSchematic.VertexTranslations;
 
 public class BlockModelRendererSchematic extends BlockModelRenderer
 {
@@ -151,7 +153,7 @@ public class BlockModelRendererSchematic extends BlockModelRenderer
 
             if (bakedquad.hasColor())
             {
-                int k = this.blockColors.getColorMultiplier(state, world, pos, bakedquad.getColorIndex());
+                int k = this.blockColors.getColor(state, world, pos, bakedquad.getColorIndex());
                 float f = (float)(k >> 16 & 255) / 255.0F;
                 float f1 = (float)(k >> 8 & 255) / 255.0F;
                 float f2 = (float)(k & 255) / 255.0F;
@@ -196,7 +198,7 @@ public class BlockModelRendererSchematic extends BlockModelRenderer
 
             if (bakedquad.hasColor())
             {
-                int k = this.blockColors.getColorMultiplier(state, world, pos, bakedquad.getColorIndex());
+                int k = this.blockColors.getColor(state, world, pos, bakedquad.getColorIndex());
                 float f = (float)(k >> 16 & 255) / 255.0F;
                 float f1 = (float)(k >> 8 & 255) / 255.0F;
                 float f2 = (float)(k & 255) / 255.0F;
