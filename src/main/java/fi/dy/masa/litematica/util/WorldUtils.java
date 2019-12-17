@@ -5,7 +5,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import com.mojang.datafixers.DataFixer;
@@ -24,7 +23,6 @@ import net.minecraft.block.enums.SlabType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientChunkManager;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
@@ -56,7 +54,6 @@ import fi.dy.masa.litematica.selection.AreaSelection;
 import fi.dy.masa.litematica.selection.Box;
 import fi.dy.masa.litematica.tool.ToolMode;
 import fi.dy.masa.litematica.util.PositionUtils.Corner;
-import fi.dy.masa.litematica.util.RayTraceUtils.RayTraceWrapper;
 import fi.dy.masa.litematica.world.SchematicWorldHandler;
 import fi.dy.masa.litematica.world.WorldSchematic;
 import fi.dy.masa.malilib.gui.GuiBase;
@@ -72,7 +69,6 @@ import fi.dy.masa.malilib.util.SubChunkPos;
 
 public class WorldUtils
 {
-    private static final List<PositionCache> EASY_PLACE_POSITIONS = new ArrayList<>();
     private static boolean preventOnBlockAdded;
 
     public static boolean shouldPreventOnBlockAdded()
@@ -450,149 +446,7 @@ public class WorldUtils
 
     private static ActionResult doEasyPlaceAction(MinecraftClient mc)
     {
-        RayTraceWrapper traceWrapper = RayTraceUtils.getGenericTrace(mc.world, mc.player, 6, true);
-
-        if (traceWrapper == null)
-        {
-            return ActionResult.PASS;
-        }
-
-        if (traceWrapper.getHitType() == RayTraceWrapper.HitType.SCHEMATIC_BLOCK)
-        {
-            BlockHitResult trace = traceWrapper.getBlockHitResult();
-            HitResult traceVanilla = RayTraceUtils.getRayTraceFromEntity(mc.world, mc.player, false, 6);
-            BlockPos pos = trace.getBlockPos();
-            World world = SchematicWorldHandler.getSchematicWorld();
-            BlockState stateSchematic = world.getBlockState(pos);
-            ItemStack stack = MaterialCache.getInstance().getItemForState(stateSchematic);
-
-            // Already placed to that position, possible server sync delay
-            if (easyPlaceIsPositionCached(pos))
-            {
-                return ActionResult.FAIL;
-            }
-
-            if (stack.isEmpty() == false)
-            {
-                BlockState stateClient = mc.world.getBlockState(pos);
-
-                if (stateSchematic == stateClient)
-                {
-                    return ActionResult.FAIL;
-                }
-
-                // Abort if there is already a block in the target position
-                if (easyPlaceBlockChecksCancel(stateSchematic, stateClient, mc.player, traceVanilla, stack))
-                {
-                    return ActionResult.FAIL;
-                }
-
-                // Abort if the required item was not able to be pick-block'd
-                if (doSchematicWorldPickBlock(true, mc) == false)
-                {
-                    return ActionResult.FAIL;
-                }
-
-                Hand hand = EntityUtils.getUsedHandForItem(mc.player, stack);
-
-                // Abort if a wrong item is in the player's hand
-                if (hand == null)
-                {
-                    return ActionResult.FAIL;
-                }
-
-                Vec3d hitPos = trace.getPos();
-                Direction sideOrig = trace.getSide();
-
-                // If there is a block in the world right behind the targeted schematic block, then use
-                // that block as the click position
-                if (traceVanilla != null && traceVanilla.getType() == HitResult.Type.BLOCK)
-                {
-                    BlockHitResult hitResult = (BlockHitResult) traceVanilla;
-                    BlockPos posVanilla = hitResult.getBlockPos();
-                    Direction sideVanilla = hitResult.getSide();
-                    BlockState stateVanilla = mc.world.getBlockState(posVanilla);
-                    Vec3d hit = traceVanilla.getPos();
-                    ItemPlacementContext ctx = new ItemPlacementContext(new ItemUsageContext(mc.player, hand, hitResult));
-
-                    if (stateVanilla.canReplace(ctx) == false)
-                    {
-                        posVanilla = posVanilla.offset(sideVanilla);
-
-                        if (pos.equals(posVanilla))
-                        {
-                            hitPos = hit;
-                            sideOrig = sideVanilla;
-                        }
-                    }
-                }
-
-                Direction side = applyPlacementFacing(stateSchematic, sideOrig, stateClient);
-
-                // Carpet Accurate Placement protocol support, plus BlockSlab support
-                hitPos = applyCarpetProtocolHitVec(pos, stateSchematic, hitPos);
-
-                // Mark that this position has been handled (use the non-offset position that is checked above)
-                cacheEasyPlacePosition(pos);
-
-                BlockHitResult hitResult = new BlockHitResult(hitPos, side, pos, false);
-
-                //System.out.printf("pos: %s side: %s, hit: %s\n", pos, side, hitPos);
-                // pos, side, hitPos
-                mc.interactionManager.interactBlock(mc.player, mc.world, hand, hitResult);
-
-                if (stateSchematic.getBlock() instanceof SlabBlock && stateSchematic.get(SlabBlock.TYPE) == SlabType.DOUBLE)
-                {
-                    stateClient = mc.world.getBlockState(pos);
-
-                    if (stateClient.getBlock() instanceof SlabBlock && stateClient.get(SlabBlock.TYPE) != SlabType.DOUBLE)
-                    {
-                        side = applyPlacementFacing(stateSchematic, sideOrig, stateClient);
-                        hitResult = new BlockHitResult(hitPos, side, pos, false);
-                        mc.interactionManager.interactBlock(mc.player, mc.world, hand, hitResult);
-                    }
-                }
-            }
-
-            return ActionResult.SUCCESS;
-        }
-        else if (traceWrapper.getHitType() == RayTraceWrapper.HitType.VANILLA_BLOCK)
-        {
-            return placementRestrictionInEffect(mc) ? ActionResult.FAIL : ActionResult.PASS;
-        }
-
-        return ActionResult.PASS;
-    }
-
-    private static boolean easyPlaceBlockChecksCancel(BlockState stateSchematic, BlockState stateClient,
-            PlayerEntity player, HitResult trace, ItemStack stack)
-    {
-        Block blockSchematic = stateSchematic.getBlock();
-
-        if (blockSchematic instanceof SlabBlock && stateSchematic.get(SlabBlock.TYPE) == SlabType.DOUBLE)
-        {
-            Block blockClient = stateClient.getBlock();
-
-            if (blockClient instanceof SlabBlock && stateClient.get(SlabBlock.TYPE) != SlabType.DOUBLE)
-            {
-                return blockSchematic != blockClient;
-            }
-        }
-
-        if (trace.getType() != HitResult.Type.BLOCK)
-        {
-            return false;
-        }
-
-        BlockHitResult hitResult = (BlockHitResult) trace;
-        ItemPlacementContext ctx = new ItemPlacementContext(new ItemUsageContext(player, Hand.MAIN_HAND, hitResult));
-
-        if (stateClient.canReplace(ctx) == false)
-        {
-            return true;
-        }
-
-        return false;
+      return Printer.doPrinterAction(mc);
     }
 
     public static Vec3d applyCarpetProtocolHitVec(BlockPos pos, BlockState state, Vec3d hitVecIn)
@@ -640,36 +494,6 @@ public class WorldUtils
         }
 
         return new Vec3d(x, y, z);
-    }
-
-    private static Direction applyPlacementFacing(BlockState stateSchematic, Direction side, BlockState stateClient)
-    {
-        Block blockSchematic = stateSchematic.getBlock();
-        Block blockClient = stateClient.getBlock();
-
-        if (blockSchematic instanceof SlabBlock)
-        {
-            if (stateSchematic.get(SlabBlock.TYPE) == SlabType.DOUBLE &&
-                blockClient instanceof SlabBlock &&
-                stateClient.get(SlabBlock.TYPE) != SlabType.DOUBLE)
-            {
-                if (stateClient.get(SlabBlock.TYPE) == SlabType.TOP)
-                {
-                    return Direction.DOWN;
-                }
-                else
-                {
-                    return Direction.UP;
-                }
-            }
-            // Single slab
-            else
-            {
-                return Direction.NORTH;
-            }
-        }
-
-        return side;
     }
 
     /**
@@ -935,62 +759,4 @@ public class WorldUtils
         return true;
     }
 
-    public static boolean easyPlaceIsPositionCached(BlockPos pos)
-    {
-        long currentTime = System.nanoTime();
-        boolean cached = false;
-
-        for (int i = 0; i < EASY_PLACE_POSITIONS.size(); ++i)
-        {
-            PositionCache val = EASY_PLACE_POSITIONS.get(i);
-            boolean expired = val.hasExpired(currentTime);
-
-            if (expired)
-            {
-                EASY_PLACE_POSITIONS.remove(i);
-                --i;
-            }
-            else if (val.getPos().equals(pos))
-            {
-                cached = true;
-
-                // Keep checking and removing old entries if there are a fair amount
-                if (EASY_PLACE_POSITIONS.size() < 16)
-                {
-                    break;
-                }
-            }
-        }
-
-        return cached;
-    }
-
-    private static void cacheEasyPlacePosition(BlockPos pos)
-    {
-        EASY_PLACE_POSITIONS.add(new PositionCache(pos, System.nanoTime(), 2000000000));
-    }
-
-    public static class PositionCache
-    {
-        private final BlockPos pos;
-        private final long time;
-        private final long timeout;
-
-        private PositionCache(BlockPos pos, long time, long timeout)
-        {
-            this.pos = pos;
-            this.time = time;
-            this.timeout = timeout;
-        }
-
-        public BlockPos getPos()
-        {
-            return this.pos;
-        }
-
-        public boolean hasExpired(long currentTime)
-        {
-            return currentTime - this.time > this.timeout;
-        }
-    }
 }
