@@ -163,14 +163,19 @@ public class RenderUtils
 
         tessellator.draw();
     }
-
-    public static void renderAreaOutline(BlockPos pos1, BlockPos pos2, float lineWidth,
-            Color4f colorX, Color4f colorY, Color4f colorZ, MinecraftClient mc)
-    {
-        GlStateManager.lineWidth(lineWidth);
-
-        net.minecraft.util.math.Box aabb = createEnclosingAABB(pos1, pos2, mc);
-        drawBoundingBoxEdges(aabb, colorX, colorY, colorZ);
+    public static void renderAreaOutline(BlockPos pos1, BlockPos pos2, float lineWidth, Color4f colorX, Color4f colorY, Color4f colorZ, MinecraftClient mc) {
+        GlStateManager.lineWidth((float)lineWidth);
+        Vec3d cameraPos = mc.gameRenderer.getCamera().getPos();
+        double dx = cameraPos.x;
+        double dy = cameraPos.y;
+        double dz = cameraPos.z;
+        double minX = (double)Math.min(pos1.getX(), pos2.getX()) - dx;
+        double minY = (double)Math.min(pos1.getY(), pos2.getY()) - dy;
+        double minZ = (double)Math.min(pos1.getZ(), pos2.getZ()) - dz;
+        double maxX = (double)Math.max(pos1.getX(), pos2.getX()) - dx + 1.0;
+        double maxY = (double)Math.max(pos1.getY(), pos2.getY()) - dy + 1.0;
+        double maxZ = (double)Math.max(pos1.getZ(), pos2.getZ()) - dz + 1.0;
+        RenderUtils.drawBoundingBoxEdges(minX, minY, minZ, maxX, maxY, maxZ, colorX, colorY, colorZ);
     }
 
     private static void drawBoundingBoxEdges(net.minecraft.util.math.Box box, Color4f colorX, Color4f colorY, Color4f colorZ)
@@ -459,9 +464,9 @@ public class RenderUtils
 
         for (int index = 0; index < 4; ++index)
         {
-            fx[index] = x + Float.intBitsToFloat(vertexData[index * 7 + 0]);
-            fy[index] = y + Float.intBitsToFloat(vertexData[index * 7 + 1]);
-            fz[index] = z + Float.intBitsToFloat(vertexData[index * 7 + 2]);
+            fx[index] = x + Float.intBitsToFloat(vertexData[index * 8 + 0]);
+            fy[index] = y + Float.intBitsToFloat(vertexData[index * 8 + 1]);
+            fz[index] = z + Float.intBitsToFloat(vertexData[index * 8 + 2]);
         }
 
         buffer.vertex(fx[0], fy[0], fz[0]).color(color.r, color.g, color.b, color.a).next();
@@ -511,9 +516,9 @@ public class RenderUtils
 
         for (int index = 0; index < 4; ++index)
         {
-            fx = x + Float.intBitsToFloat(vertexData[index * 7 + 0]);
-            fy = y + Float.intBitsToFloat(vertexData[index * 7 + 1]);
-            fz = z + Float.intBitsToFloat(vertexData[index * 7 + 2]);
+            fx = x + Float.intBitsToFloat(vertexData[index * 8 + 0]);
+            fy = y + Float.intBitsToFloat(vertexData[index * 8 + 1]);
+            fz = z + Float.intBitsToFloat(vertexData[index * 8 + 2]);
 
             buffer.vertex(fx, fy, fz).color(color.r, color.g, color.b, color.a).next();
         }

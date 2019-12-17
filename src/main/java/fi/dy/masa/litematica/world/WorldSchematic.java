@@ -189,12 +189,6 @@ public class WorldSchematic extends ClientWorld
     }
 
     @Override
-    public void setBlockBreakingInfo(int int_1, BlockPos blockPos_1, int int_2)
-    {
-        // NO-OP
-    }
-
-    @Override
     public void playGlobalEvent(int int_1, BlockPos blockPos_1, int int_2)
     {
         // NO-OP

@@ -282,16 +282,13 @@ public class SchematicConversionFixers
                         return Blocks.POTTED_JUNGLE_SAPLING.getDefaultState();
                     if (meta == 4)
                         return Blocks.POTTED_ACACIA_SAPLING.getDefaultState();
-                    if (meta == 5)
-                        return Blocks.POTTED_DARK_OAK_SAPLING.getDefaultState();
-
-                    return state;
+                    if (meta != 5) break;
+                    return Blocks.POTTED_DARK_OAK_SAPLING.getDefaultState();
                 case "minecraft:tallgrass":
                     if (meta == 0)
                         return Blocks.POTTED_DEAD_BUSH.getDefaultState();
-                    if (meta == 2)
-                        return Blocks.POTTED_FERN.getDefaultState();
-                    return state;
+                    if (meta != 2) break;
+                    return Blocks.POTTED_FERN.getDefaultState();
                 case "minecraft:red_flower":
                     if (meta == 0)
                         return Blocks.POTTED_POPPY.getDefaultState();
@@ -309,9 +306,8 @@ public class SchematicConversionFixers
                         return Blocks.POTTED_WHITE_TULIP.getDefaultState();
                     if (meta == 7)
                         return Blocks.POTTED_PINK_TULIP.getDefaultState();
-                    if (meta == 8)
-                        return Blocks.POTTED_OXEYE_DAISY.getDefaultState();
-                    return state;
+                    if (meta != 8) break;
+                    return Blocks.POTTED_OXEYE_DAISY.getDefaultState();
                 case "minecraft:yellow_flower":
                     return Blocks.POTTED_DANDELION.getDefaultState();
                 case "minecraft:brown_mushroom":
@@ -322,8 +318,10 @@ public class SchematicConversionFixers
                     return Blocks.POTTED_DEAD_BUSH.getDefaultState();
                 case "minecraft:cactus":
                     return Blocks.POTTED_CACTUS.getDefaultState();
+                default:
+                    return state;
+                
                 }
-                return state;
             }
         }
         return state;

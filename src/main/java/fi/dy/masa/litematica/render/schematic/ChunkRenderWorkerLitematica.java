@@ -235,11 +235,13 @@ public class ChunkRenderWorkerLitematica implements Runnable
         return this.bufferCache != null ? this.bufferCache : this.chunkRenderDispatcher.allocateRenderBuilder();
     }
 
-    private void freeRenderBuilder(ChunkRenderTaskSchematic task)
+    private void freeRenderBuilder(ChunkRenderTaskSchematic generator)
     {
+        BufferBuilderCache builderCache = generator.getBufferCache();
+        builderCache.clear();
         if (this.bufferCache == null)
         {
-            this.chunkRenderDispatcher.freeRenderBuilder(task.getBufferCache());
+            this.chunkRenderDispatcher.freeRenderBuilder(builderCache);
         }
     }
 

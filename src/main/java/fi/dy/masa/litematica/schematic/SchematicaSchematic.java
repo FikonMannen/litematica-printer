@@ -219,7 +219,7 @@ public class SchematicaSchematic
             final int czStart = posMin.getZ() >> 4;
             final int cxEnd = posMax.getX() >> 4;
             final int czEnd = posMax.getZ() >> 4;
-
+            BlockPos.Mutable posMutable = new BlockPos.Mutable();
             for (int cz = czStart; cz <= czEnd; ++cz)
             {
                 for (int cx = cxStart; cx <= cxEnd; ++cx)
@@ -244,8 +244,8 @@ public class SchematicaSchematic
                                 BlockState state = this.blocks.get(xSrc, ySrc, zSrc);
 
                                 BlockPos pos = new BlockPos(x, y, z);
-                                CompoundTag teNBT = this.tiles.get(pos);
-
+                                posMutable.set(xSrc, ySrc, zSrc);
+                                CompoundTag teNBT = this.tiles.get(posMutable);
                                 // TODO The rotations need to be transformed back to get the correct source position in the schematic...
                                 /*
                                 pos = Template.transformedBlockPos(placement, pos).add(posStart);
@@ -322,7 +322,7 @@ public class SchematicaSchematic
             {
                 float rotationYaw = entity.applyMirror(mirror);
                 rotationYaw = rotationYaw + (entity.yaw - entity.applyRotation(rotation));
-                entity.setPositionAndAngles(realPos.getX(), realPos.getY(), realPos.getZ(), rotationYaw, entity.pitch);
+                entity.setPositionAndAngles(realPos.x, realPos.y, realPos.z, rotationYaw, entity.pitch);
                 EntityUtils.spawnEntityAndPassengersInWorld(entity, world);
             }
         }
@@ -637,6 +637,9 @@ public class SchematicaSchematic
         {
             CompoundTag tag = tagList.getCompound(i);
             BlockPos pos = new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"));
+            Vec3i size = this.blocks.getSize();
+            if (pos.getX() < 0 || pos.getX() >= size.getX() || pos.getY() < 0 || pos.getY() >= size.getY() || pos.getZ() < 0 || pos.getZ() >= size.getZ()) continue;
+            tag = this.converter.fixTileEntityNBT(tag, this.blocks.get(pos.getX(), pos.getY(), pos.getZ()));
             this.tiles.put(pos, tag);
         }
     }

@@ -220,7 +220,8 @@ public class EntityUtils
         {
             for (Entity passenger : entity.getPassengerList())
             {
-                passenger.setPosition(entity.getX(), entity.getY() + entity.getMountedHeightOffset() + passenger.getHeightOffset(), entity.getZ());
+                passenger.setPositionAndAngles(entity.getX(), entity.getY() + entity.getMountedHeightOffset() + passenger.getHeightOffset(), entity.getZ(), passenger.yaw, passenger.pitch);
+                EntityUtils.setEntityRotations(passenger, passenger.yaw, passenger.pitch);
                 spawnEntityAndPassengersInWorld(passenger, world);
             }
         }
