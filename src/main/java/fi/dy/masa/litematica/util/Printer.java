@@ -37,6 +37,7 @@ import net.minecraft.block.LadderBlock;
 import net.minecraft.block.LeverBlock;
 import net.minecraft.block.LogBlock;
 import net.minecraft.block.Material;
+import net.minecraft.block.NoteBlock;
 import net.minecraft.block.ObserverBlock;
 import net.minecraft.block.PillarBlock;
 import net.minecraft.block.PistonBlock;
@@ -405,6 +406,17 @@ public class Printer {
                                         if (stateClient.getMaterial() != Material.METAL && stateSchematic
                                                 .get(DoorBlock.OPEN) != stateClient.get(DoorBlock.OPEN))
                                             clickTimes = 1;
+                                    } else if (sBlock instanceof NoteBlock) {
+                                        int note = stateClient.get(NoteBlock.NOTE);
+                                        int targetNote = stateSchematic.get(NoteBlock.NOTE);
+                                        if (note != targetNote) {
+
+                                            if (note < targetNote) {
+                                                clickTimes = targetNote - note;
+                                            } else if (note > targetNote) {
+                                                clickTimes = targetNote + (25 - note);
+                                            }
+                                        }
                                     }
 
                                     for (int i = 0; i < clickTimes; i++) // Click on the block a few times
