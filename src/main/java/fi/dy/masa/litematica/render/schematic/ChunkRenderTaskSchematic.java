@@ -1,153 +1,136 @@
 package fi.dy.masa.litematica.render.schematic;
 
-import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
+import fi.dy.masa.litematica.render.schematic.BufferBuilderCache;
+import fi.dy.masa.litematica.render.schematic.ChunkRenderDataSchematic;
+import fi.dy.masa.litematica.render.schematic.ChunkRendererSchematicVbo;
+import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
+import net.minecraft.util.math.Vec3d;
 
-public class ChunkRenderTaskSchematic implements Comparable<ChunkRenderTaskSchematic>
-{
+public class ChunkRenderTaskSchematic
+implements Comparable<ChunkRenderTaskSchematic> {
     private final ChunkRendererSchematicVbo chunkRenderer;
-    private final ChunkRenderTaskSchematic.Type type;
-    private final List<Runnable> listFinishRunnables = Lists.<Runnable>newArrayList();
+    private final Type type;
+    private final List<Runnable> listFinishRunnables = Lists.newArrayList();
     private final ReentrantLock lock = new ReentrantLock();
+    private final Supplier<Vec3d> cameraPosSupplier;
     private final double distanceSq;
     private BufferBuilderCache bufferBuilderCache;
     private ChunkRenderDataSchematic chunkRenderData;
-    private ChunkRenderTaskSchematic.Status status = ChunkRenderTaskSchematic.Status.PENDING;
+    private Status status = Status.PENDING;
     private boolean finished;
 
-    public ChunkRenderTaskSchematic(ChunkRendererSchematicVbo renderChunkIn, ChunkRenderTaskSchematic.Type typeIn, double distanceSqIn)
-    {
+    public ChunkRenderTaskSchematic(ChunkRendererSchematicVbo renderChunkIn, Type typeIn, Supplier<Vec3d> cameraPosSupplier, double distanceSqIn) {
         this.chunkRenderer = renderChunkIn;
         this.type = typeIn;
+        this.cameraPosSupplier = cameraPosSupplier;
         this.distanceSq = distanceSqIn;
     }
 
-    public ChunkRenderTaskSchematic.Status getStatus()
-    {
+    public Supplier<Vec3d> getCameraPosSupplier() {
+        return this.cameraPosSupplier;
+    }
+
+    public Status getStatus() {
         return this.status;
     }
 
-    public ChunkRendererSchematicVbo getRenderChunk()
-    {
+    public ChunkRendererSchematicVbo getRenderChunk() {
         return this.chunkRenderer;
     }
 
-    public ChunkRenderDataSchematic getChunkRenderData()
-    {
+    public ChunkRenderDataSchematic getChunkRenderData() {
         return this.chunkRenderData;
     }
 
-    public void setChunkRenderData(ChunkRenderDataSchematic chunkRenderData)
-    {
+    public void setChunkRenderData(ChunkRenderDataSchematic chunkRenderData) {
         this.chunkRenderData = chunkRenderData;
     }
 
-    public BufferBuilderCache getBufferCache()
-    {
+    public BufferBuilderCache getBufferCache() {
         return this.bufferBuilderCache;
     }
 
-    public void setRegionRenderCacheBuilder(BufferBuilderCache cache)
-    {
+    public void setRegionRenderCacheBuilder(BufferBuilderCache cache) {
         this.bufferBuilderCache = cache;
     }
 
-    public void setStatus(ChunkRenderTaskSchematic.Status statusIn)
-    {
+    public void setStatus(Status statusIn) {
         this.lock.lock();
-
-        try
-        {
+        try {
             this.status = statusIn;
         }
-        finally
-        {
+        finally {
             this.lock.unlock();
         }
     }
 
-    public void finish()
-    {
+    public void finish() {
         this.lock.lock();
-
-        try
-        {
-            if (this.type == ChunkRenderTaskSchematic.Type.REBUILD_CHUNK && this.status != ChunkRenderTaskSchematic.Status.DONE)
-            {
+        try {
+            if (this.type == Type.REBUILD_CHUNK && this.status != Status.DONE) {
                 this.chunkRenderer.setNeedsUpdate(false);
             }
-
             this.finished = true;
-            this.status = ChunkRenderTaskSchematic.Status.DONE;
-
-            for (Runnable runnable : this.listFinishRunnables)
-            {
+            this.status = Status.DONE;
+            for (Runnable runnable : this.listFinishRunnables) {
                 runnable.run();
             }
         }
-        finally
-        {
+        finally {
             this.lock.unlock();
         }
     }
 
-    public void addFinishRunnable(Runnable runnable)
-    {
+    public void addFinishRunnable(Runnable runnable) {
         this.lock.lock();
-
-        try
-        {
+        try {
             this.listFinishRunnables.add(runnable);
-
-            if (this.finished)
-            {
+            if (this.finished) {
                 runnable.run();
             }
         }
-        finally
-        {
+        finally {
             this.lock.unlock();
         }
     }
 
-    public ReentrantLock getLock()
-    {
+    public ReentrantLock getLock() {
         return this.lock;
     }
 
-    public ChunkRenderTaskSchematic.Type getType()
-    {
+    public Type getType() {
         return this.type;
     }
 
-    public boolean isFinished()
-    {
+    public boolean isFinished() {
         return this.finished;
     }
 
-    public int compareTo(ChunkRenderTaskSchematic other)
-    {
-        return Doubles.compare(this.distanceSq, other.distanceSq);
+    @Override
+    public int compareTo(ChunkRenderTaskSchematic other) {
+        return Doubles.compare((double)this.distanceSq, (double)other.distanceSq);
     }
 
-    public double getDistanceSq()
-    {
+    public double getDistanceSq() {
         return this.distanceSq;
     }
 
-    public static enum Status
-    {
+    public static enum Type {
+        REBUILD_CHUNK,
+        RESORT_TRANSPARENCY;
+
+    }
+
+    public static enum Status {
         PENDING,
         COMPILING,
         UPLOADING,
         DONE;
+
     }
 
-    public static enum Type
-    {
-        REBUILD_CHUNK,
-        RESORT_TRANSPARENCY;
-    }
 }

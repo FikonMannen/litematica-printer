@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Random;
 import org.lwjgl.opengl.GL11;
 import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilder;
@@ -12,6 +14,7 @@ import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.client.render.model.BakedQuad;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -45,10 +48,12 @@ public class RenderUtils
 
     public static void renderBlockOutline(BlockPos pos, float expand, float lineWidth, Color4f color, MinecraftClient mc)
     {
-        GlStateManager.lineWidth(lineWidth);
-
-        net.minecraft.util.math.Box aabb = createAABB(pos.getX(), pos.getY(), pos.getZ(), expand, mc);
-        WorldRenderer.drawBoxOutline(aabb, color.r, color.g, color.b, color.a);
+        RenderSystem.lineWidth(lineWidth);
+        Tessellator tessellator = Tessellator.getInstance();
+        BufferBuilder buffer = tessellator.getBuffer();
+        buffer.begin(1, VertexFormats.POSITION_COLOR);
+        RenderUtils.drawBlockBoundingBoxOutlinesBatchedLines(pos, color, expand, buffer, mc);
+        tessellator.draw();
     }
 
     public static void drawBlockBoundingBoxOutlinesBatchedLines(BlockPos pos, Color4f color,
@@ -97,7 +102,7 @@ public class RenderUtils
     }
 
     public static void renderBlockOutlineOverlapping(BlockPos pos, float expand, float lineWidth,
-            Color4f color1, Color4f color2, Color4f color3, MinecraftClient mc)
+            Color4f color1, Color4f color2, Color4f color3,MatrixStack matrices, MinecraftClient mc)
     {
         Vec3d cameraPos = mc.gameRenderer.getCamera().getPos();
         final double dx = cameraPos.x;
@@ -231,7 +236,7 @@ public class RenderUtils
         buffer.vertex(maxX, maxY, maxZ).color(color.r, color.g, color.b, color.a).next();
     }
 
-    public static void renderAreaSides(BlockPos pos1, BlockPos pos2, Color4f color, MinecraftClient mc)
+    public static void renderAreaSides(BlockPos pos1, BlockPos pos2, Color4f color,MatrixStack matrices, MinecraftClient mc)
     {
         GlStateManager.enableBlend();
         GlStateManager.disableCull();

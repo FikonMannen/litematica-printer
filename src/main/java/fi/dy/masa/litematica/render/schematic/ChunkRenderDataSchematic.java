@@ -1,141 +1,122 @@
 package fi.dy.masa.litematica.render.schematic;
 
+import fi.dy.masa.litematica.render.schematic.ChunkRendererSchematicVbo;
+import it.unimi.dsi.fastutil.objects.ObjectArraySet;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import fi.dy.masa.litematica.render.schematic.ChunkRendererSchematicVbo.OverlayRenderType;
+import java.util.Map;
+import java.util.Set;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.RenderLayer;
 
-public class ChunkRenderDataSchematic
-{
-    public static final ChunkRenderDataSchematic EMPTY = new ChunkRenderDataSchematic() {
+public class ChunkRenderDataSchematic {
+    public static final ChunkRenderDataSchematic EMPTY = new ChunkRenderDataSchematic(){
+
         @Override
-        public void setBlockLayerUsed(RenderLayer layer)
-        {
+        public void setBlockLayerUsed(RenderLayer layer) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void setBlockLayerStarted(RenderLayer layer)
-        {
+        public void setBlockLayerStarted(RenderLayer layer) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void setOverlayTypeUsed(OverlayRenderType layer)
-        {
+        public void setOverlayTypeUsed(ChunkRendererSchematicVbo.OverlayRenderType layer) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void setOverlayTypeStarted(OverlayRenderType layer)
-        {
+        public void setOverlayTypeStarted(ChunkRendererSchematicVbo.OverlayRenderType layer) {
             throw new UnsupportedOperationException();
         }
     };
-
-    private final boolean[] blockLayersUsed = new boolean[RenderLayer.values().length];
-    private final boolean[] blockLayersStarted = new boolean[RenderLayer.values().length];
-    private final List<BlockEntity> blockEntities = new ArrayList<>();
-
-    private final boolean[] overlayLayersUsed = new boolean[OverlayRenderType.values().length];
-    private final boolean[] overlayLayersStarted = new boolean[OverlayRenderType.values().length];
-    private final BufferBuilder.State[] blockBufferStates = new BufferBuilder.State[RenderLayer.values().length];
-    private final BufferBuilder.State[] overlayBufferStates = new BufferBuilder.State[OverlayRenderType.values().length];
+    private final Set<RenderLayer> blockLayersUsed = new ObjectArraySet();
+    private final Set<RenderLayer> blockLayersStarted = new ObjectArraySet();
+    private final List<BlockEntity> blockEntities = new ArrayList<BlockEntity>();
+    private final boolean[] overlayLayersUsed = new boolean[ChunkRendererSchematicVbo.OverlayRenderType.values().length];
+    private final boolean[] overlayLayersStarted = new boolean[ChunkRendererSchematicVbo.OverlayRenderType.values().length];
+    private final Map<RenderLayer, BufferBuilder.State> blockBufferStates = new HashMap<RenderLayer, BufferBuilder.State>();
+    private final BufferBuilder.State[] overlayBufferStates = new BufferBuilder.State[ChunkRendererSchematicVbo.OverlayRenderType.values().length];
     private boolean overlayEmpty = true;
     private boolean empty = true;
     private long timeBuilt;
 
-    public boolean isEmpty()
-    {
+    public boolean isEmpty() {
         return this.empty;
     }
 
-    public boolean isBlockLayerEmpty(RenderLayer layer)
-    {
-        return ! this.blockLayersUsed[layer.ordinal()];
+    public boolean isBlockLayerEmpty(RenderLayer layer) {
+        return !this.blockLayersUsed.contains((Object)layer);
     }
 
-    public void setBlockLayerUsed(RenderLayer layer)
-    {
-        this.blockLayersUsed[layer.ordinal()] = true;
+    public void setBlockLayerUsed(RenderLayer layer) {
+        this.blockLayersUsed.add(layer);
         this.empty = false;
     }
 
-    public boolean isBlockLayerStarted(RenderLayer layer)
-    {
-        return this.blockLayersStarted[layer.ordinal()];
+    public boolean isBlockLayerStarted(RenderLayer layer) {
+        return this.blockLayersStarted.contains((Object)layer);
     }
 
-    public void setBlockLayerStarted(RenderLayer layer)
-    {
-        this.blockLayersStarted[layer.ordinal()] = true;
+    public void setBlockLayerStarted(RenderLayer layer) {
+        this.blockLayersStarted.add(layer);
     }
 
-    public boolean isOverlayEmpty()
-    {
+    public boolean isOverlayEmpty() {
         return this.overlayEmpty;
     }
 
-    protected void setOverlayTypeUsed(OverlayRenderType type)
-    {
+    protected void setOverlayTypeUsed(ChunkRendererSchematicVbo.OverlayRenderType type) {
         this.overlayEmpty = false;
         this.overlayLayersUsed[type.ordinal()] = true;
     }
 
-    public boolean isOverlayTypeEmpty(OverlayRenderType type)
-    {
-        return ! this.overlayLayersUsed[type.ordinal()];
+    public boolean isOverlayTypeEmpty(ChunkRendererSchematicVbo.OverlayRenderType type) {
+        return !this.overlayLayersUsed[type.ordinal()];
     }
 
-    public void setOverlayTypeStarted(OverlayRenderType type)
-    {
+    public void setOverlayTypeStarted(ChunkRendererSchematicVbo.OverlayRenderType type) {
         this.overlayLayersStarted[type.ordinal()] = true;
     }
 
-    public boolean isOverlayTypeStarted(OverlayRenderType type)
-    {
+    public boolean isOverlayTypeStarted(ChunkRendererSchematicVbo.OverlayRenderType type) {
         return this.overlayLayersStarted[type.ordinal()];
     }
 
-    public BufferBuilder.State getBlockBufferState(RenderLayer layer)
-    {
-        return this.blockBufferStates[layer.ordinal()];
+    public BufferBuilder.State getBlockBufferState(RenderLayer layer) {
+        return this.blockBufferStates.get((Object)layer);
     }
 
-    public void setBlockBufferState(RenderLayer layer, BufferBuilder.State state)
-    {
-        this.blockBufferStates[layer.ordinal()] = state;
+    public void setBlockBufferState(RenderLayer layer, BufferBuilder.State state) {
+        this.blockBufferStates.put(layer, state);
     }
 
-    public BufferBuilder.State getOverlayBufferState(OverlayRenderType type)
-    {
+    public BufferBuilder.State getOverlayBufferState(ChunkRendererSchematicVbo.OverlayRenderType type) {
         return this.overlayBufferStates[type.ordinal()];
     }
 
-    public void setOverlayBufferState(OverlayRenderType type, BufferBuilder.State state)
-    {
+    public void setOverlayBufferState(ChunkRendererSchematicVbo.OverlayRenderType type, BufferBuilder.State state) {
         this.overlayBufferStates[type.ordinal()] = state;
     }
 
-    public List<BlockEntity> getBlockEntities()
-    {
+    public List<BlockEntity> getBlockEntities() {
         return this.blockEntities;
     }
 
-    public void addBlockEntity(BlockEntity be)
-    {
+    public void addBlockEntity(BlockEntity be) {
         this.blockEntities.add(be);
     }
 
-    public long getTimeBuilt()
-    {
+    public long getTimeBuilt() {
         return this.timeBuilt;
     }
 
-    public void setTimeBuilt(long time)
-    {
+    public void setTimeBuilt(long time) {
         this.timeBuilt = time;
     }
+
 }

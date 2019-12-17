@@ -116,7 +116,7 @@ public class ItemUtils
             CompoundTag tagLore = new CompoundTag();
             ListTag tagList = new ListTag();
 
-            tagList.add(new StringTag("(+NBT)"));
+            tagList.add(StringTag.of("(+NBT)"));
             tagLore.put("Lore", tagList);
             stack.putSubTag("display", tagLore);
             stack.putSubTag("BlockEntityTag", nbt);

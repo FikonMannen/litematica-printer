@@ -1,5 +1,7 @@
 package fi.dy.masa.litematica.event;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+
 import fi.dy.masa.litematica.config.Configs;
 import fi.dy.masa.litematica.config.Hotkeys;
 import fi.dy.masa.litematica.data.DataManager;
@@ -12,35 +14,29 @@ import fi.dy.masa.litematica.tool.ToolMode;
 import fi.dy.masa.malilib.interfaces.IRenderer;
 import fi.dy.masa.malilib.util.GuiUtils;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.util.math.MatrixStack;
 
 public class RenderHandler implements IRenderer
 {
     @Override
-    public void onRenderWorldLast(float partialTicks)
+    public void onRenderWorldLast(float partialTicks, MatrixStack matrices)
     {
         MinecraftClient mc = MinecraftClient.getInstance();
 
         if (Configs.Visuals.ENABLE_RENDERING.getBooleanValue() && mc.player != null)
         {
-            boolean invert = Hotkeys.INVERT_GHOST_BLOCK_RENDER_STATE.getKeybind().isKeybindHeld();
-
-            if (Configs.Visuals.ENABLE_SCHEMATIC_RENDERING.getBooleanValue() != invert &&
-                Configs.Generic.BETTER_RENDER_ORDER.getBooleanValue() == false)
-            {
-                LitematicaRenderer.getInstance().renderSchematicWorld(partialTicks);
+        
+            RenderSystem.pushMatrix();
+            RenderSystem.multMatrix(matrices.peek().getModel());
+            OverlayRenderer.getInstance().renderBoxes(matrices, partialTicks);
+            if (Configs.InfoOverlays.VERIFIER_OVERLAY_ENABLED.getBooleanValue()) {
+                OverlayRenderer.getInstance().renderSchematicVerifierMismatches(matrices, partialTicks);
             }
 
-            OverlayRenderer.getInstance().renderBoxes(partialTicks);
-
-            if (Configs.InfoOverlays.VERIFIER_OVERLAY_ENABLED.getBooleanValue())
-            {
-                OverlayRenderer.getInstance().renderSchematicVerifierMismatches(partialTicks);
+            if (DataManager.getToolMode() == ToolMode.REBUILD) {
+                OverlayRenderer.getInstance().renderSchematicRebuildTargetingOverlay(matrices, partialTicks);
             }
-
-            if (DataManager.getToolMode() == ToolMode.REBUILD)
-            {
-                OverlayRenderer.getInstance().renderSchematicRebuildTargetingOverlay(partialTicks);
-            }
+            RenderSystem.popMatrix();
         }
     }
 

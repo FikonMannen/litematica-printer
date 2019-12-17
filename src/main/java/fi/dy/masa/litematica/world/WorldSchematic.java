@@ -58,12 +58,6 @@ public class WorldSchematic extends ClientWorld
     }
 
     @Override
-    public ChunkManager getChunkManager()
-    {
-        return this.getChunkProvider();
-    }
-
-    @Override
     public WorldChunk getWorldChunk(BlockPos pos)
     {
         return this.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
@@ -101,8 +95,8 @@ public class WorldSchematic extends ClientWorld
 
     private boolean spawnEntityBase(Entity entityIn)
     {
-        int cx = MathHelper.floor(entityIn.x / 16.0D);
-        int cz = MathHelper.floor(entityIn.z / 16.0D);
+        int cx = MathHelper.floor(entityIn.getX() / 16.0D);
+        int cz = MathHelper.floor(entityIn.getZ() / 16.0D);
 
         if (this.chunkProviderSchematic.isChunkLoaded(cx, cz) == false)
         {

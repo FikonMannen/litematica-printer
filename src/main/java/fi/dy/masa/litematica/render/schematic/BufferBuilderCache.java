@@ -1,41 +1,39 @@
 package fi.dy.masa.litematica.render.schematic;
 
-import fi.dy.masa.litematica.render.schematic.ChunkRendererSchematicVbo.OverlayRenderType;
+import fi.dy.masa.litematica.render.schematic.ChunkRendererSchematicVbo;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.RenderLayer;
 
-public class BufferBuilderCache
-{
-    private final BufferBuilder[] blockBufferBuilders = new BufferBuilder[RenderLayer.values().length];
+public class BufferBuilderCache {
+    private final Map<RenderLayer, BufferBuilder> blockBufferBuilders = new HashMap<RenderLayer, BufferBuilder>();
     private BufferBuilder[] overlayBufferBuilders;
 
-    public BufferBuilderCache()
-    {
-        this.blockBufferBuilders[RenderLayer.SOLID.ordinal()] = new BufferBuilder(2097152);
-        this.blockBufferBuilders[RenderLayer.CUTOUT.ordinal()] = new BufferBuilder(131072);
-        this.blockBufferBuilders[RenderLayer.CUTOUT_MIPPED.ordinal()] = new BufferBuilder(131072);
-        this.blockBufferBuilders[RenderLayer.TRANSLUCENT.ordinal()] = new BufferBuilder(262144);
-
-        this.overlayBufferBuilders = new BufferBuilder[OverlayRenderType.values().length];
-
-        for (int i = 0; i < this.overlayBufferBuilders.length; ++i)
-        {
+    public BufferBuilderCache() {
+        for (RenderLayer layer : RenderLayer.getBlockLayers()) {
+            this.blockBufferBuilders.put(layer, new BufferBuilder(layer.getExpectedBufferSize()));
+        }
+        this.overlayBufferBuilders = new BufferBuilder[ChunkRendererSchematicVbo.OverlayRenderType.values().length];
+        for (int i = 0; i < this.overlayBufferBuilders.length; ++i) {
             this.overlayBufferBuilders[i] = new BufferBuilder(262144);
         }
     }
 
-    public BufferBuilder getBlockBufferByLayer(RenderLayer layer)
-    {
-        return this.blockBufferBuilders[layer.ordinal()];
+    public BufferBuilder getBlockBufferByLayer(RenderLayer layer) {
+        return this.blockBufferBuilders.get((Object)layer);
     }
 
-    public BufferBuilder getBlockBufferByLayerId(int id)
-    {
-        return this.blockBufferBuilders[id];
-    }
-
-    public BufferBuilder getOverlayBuffer(OverlayRenderType type)
-    {
+    public BufferBuilder getOverlayBuffer(ChunkRendererSchematicVbo.OverlayRenderType type) {
         return this.overlayBufferBuilders[type.ordinal()];
+    }
+
+    public void clear() {
+        this.blockBufferBuilders.values().forEach(BufferBuilder::reset);
+        for (BufferBuilder buffer : this.overlayBufferBuilders) {
+            buffer.reset();
+        }
     }
 }

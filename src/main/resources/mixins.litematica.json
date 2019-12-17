@@ -4,17 +4,22 @@
     "compatibilityLevel": "JAVA_8",
     "minVersion": "0.7",
     "client": [
-        "MixinClientPlayNetworkHandler",
-        "MixinClientWorld",
-        "MixinDebugHud",
-        "MixinGameRenderer",
-        "MixinIntegratedServer",
-        "MixinMinecraftClient",
-        "MixinRailBlocks",
-        "MixinWorldChunk",
-        "MixinWorldRenderer"
+      "IMixinBlockModelRenderer",
+      "IMixinFenceGateBlock",
+      "IMixinRedstoneWireBlock",
+      "IMixinStairsBlock",
+      "IMixinVineBlock",
+      "MixinBlockStateFlattening",
+      "MixinClientPlayNetworkHandler",
+      "MixinClientWorld",
+      "MixinDebugHud",
+      "MixinIntegratedServer",
+      "MixinMinecraftClient",
+      "MixinRailBlocks",
+      "MixinWorldChunk",
+      "MixinWorldRenderer"
     ],
     "injectors": {
-        "defaultRequire": 1
+      "defaultRequire": 1
     }
-}
+  }

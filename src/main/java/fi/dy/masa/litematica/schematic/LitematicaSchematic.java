@@ -1,54 +1,24 @@
 package fi.dy.masa.litematica.schematic;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import javax.annotation.Nullable;
 import com.google.common.collect.ImmutableMap;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.fluid.Fluids;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.LongArrayTag;
-import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.Tag;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.BlockMirror;
-import net.minecraft.util.BlockRotation;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.Vec3i;
-import net.minecraft.util.registry.Registry;
-import net.minecraft.world.ScheduledTick;
-import net.minecraft.world.TickPriority;
-import net.minecraft.world.World;
+import com.google.common.collect.ImmutableSet;
 import fi.dy.masa.litematica.Litematica;
 import fi.dy.masa.litematica.config.Configs;
+import fi.dy.masa.litematica.schematic.SchematicMetadata;
+import fi.dy.masa.litematica.schematic.SchematicaSchematic;
+import fi.dy.masa.litematica.schematic.container.ILitematicaBlockStatePalette;
 import fi.dy.masa.litematica.schematic.container.LitematicaBlockStateContainer;
+import fi.dy.masa.litematica.schematic.conversion.SchematicConversionMaps;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
 import fi.dy.masa.litematica.schematic.placement.SubRegionPlacement;
 import fi.dy.masa.litematica.selection.AreaSelection;
-import fi.dy.masa.litematica.selection.Box;
 import fi.dy.masa.litematica.util.EntityUtils;
 import fi.dy.masa.litematica.util.PositionUtils;
 import fi.dy.masa.litematica.util.ReplaceBehavior;
 import fi.dy.masa.litematica.util.WorldUtils;
+import fi.dy.masa.malilib.config.IConfigOptionListEntry;
+import fi.dy.masa.malilib.config.options.ConfigOptionList;
+import fi.dy.masa.malilib.gui.Message;
 import fi.dy.masa.malilib.gui.Message.MessageType;
 import fi.dy.masa.malilib.interfaces.IStringConsumer;
 import fi.dy.masa.malilib.util.Constants;
@@ -56,20 +26,68 @@ import fi.dy.masa.malilib.util.InfoUtils;
 import fi.dy.masa.malilib.util.IntBoundingBox;
 import fi.dy.masa.malilib.util.NBTUtils;
 import fi.dy.masa.malilib.util.StringUtils;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Predicate;
+import javax.annotation.Nullable;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.LongArrayTag;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.Tag;
+import net.minecraft.server.world.ServerTickScheduler;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.BlockPos;
+import fi.dy.masa.litematica.selection.Box;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
+import net.minecraft.util.registry.DefaultedRegistry;
+import net.minecraft.util.registry.Registry;
+import net.minecraft.world.ScheduledTick;
+import net.minecraft.world.TickPriority;
+import net.minecraft.world.World;
+import org.apache.logging.log4j.Logger;
 
 public class LitematicaSchematic
 {
     public static final String FILE_EXTENSION = ".litematic";
+    public static final int SCHEMATIC_VERSION_1_13_2 = 5;
+    public static final int MINECRAFT_DATA_VERSION_1_13_2 = 1631;
     public static final int SCHEMATIC_VERSION = 5;
-    public static final int MINECRAFT_DATA_VERSION = 1631; // MC 1.13.2
-
-    private final Map<String, LitematicaBlockStateContainer> blockContainers = new HashMap<>();
-    private final Map<String, Map<BlockPos, CompoundTag>> tileEntities = new HashMap<>();
-    private final Map<String, Map<BlockPos, ScheduledTick<Block>>> pendingBlockTicks = new HashMap<>();
-    private final Map<String, Map<BlockPos, ScheduledTick<Fluid>>> pendingFluidTicks = new HashMap<>();
-    private final Map<String, List<EntityInfo>> entities = new HashMap<>();
-    private final Map<String, BlockPos> subRegionPositions = new HashMap<>();
-    private final Map<String, BlockPos> subRegionSizes = new HashMap<>();
+    public static final int MINECRAFT_DATA_VERSION = 1631;
+    private final Map<String, LitematicaBlockStateContainer> blockContainers = new HashMap<String, LitematicaBlockStateContainer>();
+    private final Map<String, Map<BlockPos, CompoundTag>> tileEntities = new HashMap<String, Map<BlockPos, CompoundTag>>();
+    private final Map<String, Map<BlockPos, ScheduledTick<Block>>> pendingBlockTicks = new HashMap<String, Map<BlockPos, ScheduledTick<Block>>>();
+    private final Map<String, Map<BlockPos, ScheduledTick<Fluid>>> pendingFluidTicks = new HashMap<String, Map<BlockPos, ScheduledTick<Fluid>>>();
+    private final Map<String, List<EntityInfo>> entities = new HashMap<String, List<EntityInfo>>();
+    private final Map<String, BlockPos> subRegionPositions = new HashMap<String, BlockPos>();
+    private final Map<String, BlockPos> subRegionSizes = new HashMap<String, BlockPos>();
     private final SchematicMetadata metadata = new SchematicMetadata();
     private int totalBlocks;
     @Nullable
@@ -144,55 +162,41 @@ public class LitematicaSchematic
         return this.subRegionSizes.get(regionName);
     }
 
-    public Map<String, Box> getAreas()
-    {
-        ImmutableMap.Builder<String, Box> builder = ImmutableMap.builder();
-
-        for (String name : this.subRegionPositions.keySet())
-        {
+    public Map<String, Box> getAreas() {
+        ImmutableMap.Builder builder = ImmutableMap.builder();
+        for (String name : this.subRegionPositions.keySet()) {
             BlockPos pos = this.subRegionPositions.get(name);
-            BlockPos posEndRel = PositionUtils.getRelativeEndPositionFromAreaSize(this.subRegionSizes.get(name));
-            Box box = new Box(pos, pos.add(posEndRel), name);
-            builder.put(name, box);
+            BlockPos posEndRel = PositionUtils.getRelativeEndPositionFromAreaSize((Vec3i)this.subRegionSizes.get(name));
+            Box box = new Box(pos, pos.add((Vec3i)posEndRel), name);
+            builder.put((Object)name, (Object)box);
         }
-
         return builder.build();
     }
 
     @Nullable
-    public static LitematicaSchematic createFromWorld(World world, AreaSelection area, boolean ignoreEntities, String author, IStringConsumer feedback)
-    {
+    public static LitematicaSchematic createFromWorld(World world, AreaSelection area, boolean ignoreEntities, String author, IStringConsumer feedback) {
         List<Box> boxes = PositionUtils.getValidBoxes(area);
-
-        if (boxes.isEmpty())
-        {
-            feedback.setString(StringUtils.translate("litematica.error.schematic.create.no_selections"));
+        if (boxes.isEmpty()) {
+            feedback.setString(StringUtils.translate((String)"litematica.error.schematic.create.no_selections", (Object[])new Object[0]));
             return null;
         }
-
         LitematicaSchematic schematic = new LitematicaSchematic(null);
-        long time = (new Date()).getTime();
-
+        long time = new Date().getTime();
         BlockPos origin = area.getEffectiveOrigin();
         schematic.setSubRegionPositions(boxes, origin);
         schematic.setSubRegionSizes(boxes);
-
         schematic.takeBlocksFromWorld(world, boxes);
-
-        if (ignoreEntities == false)
-        {
+        if (!ignoreEntities) {
             schematic.takeEntitiesFromWorld(world, boxes, origin);
         }
-
         schematic.metadata.setAuthor(author);
         schematic.metadata.setName(area.getName());
         schematic.metadata.setTimeCreated(time);
         schematic.metadata.setTimeModified(time);
         schematic.metadata.setRegionCount(boxes.size());
         schematic.metadata.setTotalVolume(PositionUtils.getTotalVolume(boxes));
-        schematic.metadata.setEnclosingSize(PositionUtils.getEnclosingAreaSize(boxes));
+        schematic.metadata.setEnclosingSize((Vec3i)PositionUtils.getEnclosingAreaSize(boxes));
         schematic.metadata.setTotalBlocks(schematic.totalBlocks);
-
         return schematic;
     }
 
@@ -207,13 +211,10 @@ public class LitematicaSchematic
     public static LitematicaSchematic createEmptySchematic(AreaSelection area, String author)
     {
         List<Box> boxes = PositionUtils.getValidBoxes(area);
-
-        if (boxes.isEmpty())
-        {
-            InfoUtils.showGuiOrInGameMessage(MessageType.ERROR, StringUtils.translate("litematica.error.schematic.create.no_selections"));
+        if (boxes.isEmpty()) {
+            InfoUtils.showGuiOrInGameMessage((Message.MessageType)Message.MessageType.ERROR, (String)StringUtils.translate((String)"litematica.error.schematic.create.no_selections", (Object[])new Object[0]), (Object[])new Object[0]);
             return null;
         }
-
         LitematicaSchematic schematic = new LitematicaSchematic(null);
         schematic.setSubRegionPositions(boxes, area.getEffectiveOrigin());
         schematic.setSubRegionSizes(boxes);
@@ -221,23 +222,20 @@ public class LitematicaSchematic
         schematic.metadata.setName(area.getName());
         schematic.metadata.setRegionCount(boxes.size());
         schematic.metadata.setTotalVolume(PositionUtils.getTotalVolume(boxes));
-        schematic.metadata.setEnclosingSize(PositionUtils.getEnclosingAreaSize(boxes));
-
-        for (Box box : boxes)
-        {
+        schematic.metadata.setEnclosingSize((Vec3i)PositionUtils.getEnclosingAreaSize(boxes));
+        for (Box box : boxes) {
             String regionName = box.getName();
             BlockPos size = box.getSize();
-            final int sizeX = Math.abs(size.getX());
-            final int sizeY = Math.abs(size.getY());
-            final int sizeZ = Math.abs(size.getZ());
+            int sizeX = Math.abs(size.getX());
+            int sizeY = Math.abs(size.getY());
+            int sizeZ = Math.abs(size.getZ());
             LitematicaBlockStateContainer container = new LitematicaBlockStateContainer(sizeX, sizeY, sizeZ);
             schematic.blockContainers.put(regionName, container);
-            schematic.tileEntities.put(regionName, new HashMap<>());
-            schematic.entities.put(regionName, new ArrayList<>());
-            schematic.pendingBlockTicks.put(regionName, new HashMap<>());
-            schematic.pendingFluidTicks.put(regionName, new HashMap<>());
+            schematic.tileEntities.put(regionName, new HashMap());
+            schematic.entities.put(regionName, new ArrayList());
+            schematic.pendingBlockTicks.put(regionName, new HashMap());
+            schematic.pendingFluidTicks.put(regionName, new HashMap());
         }
-
         return schematic;
     }
 
@@ -744,94 +742,48 @@ public class LitematicaSchematic
         if (rotationCombined != BlockRotation.NONE) { rotationYaw += entity.yaw - entity.applyRotation(rotationCombined); }
 
         entity.setPositionAndAngles(x, y, z, rotationYaw, entity.pitch);
-
-        entity.prevYaw = rotationYaw;
-        entity.prevPitch = entity.pitch;
-
-        if (entity instanceof LivingEntity)
-        {
-            LivingEntity livingBase = (LivingEntity) entity;
-            livingBase.headYaw = rotationYaw;
-            livingBase.prevHeadYaw = rotationYaw;
-            //livingBase.renderYawOffset = rotationYaw;
-            //livingBase.prevRenderYawOffset = rotationYaw;
-        }
+        EntityUtils.setEntityRotations(entity, rotationYaw, entity.pitch);
     }
 
-    private void takeEntitiesFromWorld(World world, List<Box> boxes, BlockPos origin)
-    {
-        for (Box box : boxes)
-        {
+    private void takeEntitiesFromWorld(World world, List<Box> boxes, BlockPos origin) {
+        for (Box box : boxes) {
             net.minecraft.util.math.Box bb = PositionUtils.createEnclosingAABB(box.getPos1(), box.getPos2());
             BlockPos regionPosAbs = box.getPos1();
-            List<EntityInfo> list = new ArrayList<>();
-            List<Entity> entities = world.getEntities((Entity) null, bb, null);
-
-            for (Entity entity : entities)
-            {
-                CompoundTag tag = new CompoundTag();
-
-                if (entity.saveToTag(tag))
-                {
-                    Vec3d posVec = new Vec3d(entity.x - regionPosAbs.getX(), entity.y - regionPosAbs.getY(), entity.z - regionPosAbs.getZ());
-                    NBTUtils.writeEntityPositionToTag(posVec, tag);
-                    list.add(new EntityInfo(posVec, tag));
-                }
+            ArrayList<EntityInfo> list = new ArrayList<EntityInfo>();
+            List<Entity> entities = world.getEntities((Entity)null, bb, null);
+            for (Entity entity : entities) {
+                CompoundTag tag;
+                if (!entity.saveToTag(tag = new CompoundTag())) continue;
+                Vec3d posVec = new Vec3d(entity.getX() - (double)regionPosAbs.getX(), entity.getY() - (double)regionPosAbs.getY(), entity.getZ() - (double)regionPosAbs.getZ());
+                NBTUtils.writeEntityPositionToTag((Vec3d)posVec, (CompoundTag)tag);
+                list.add(new EntityInfo(posVec, tag));
             }
-
             this.entities.put(box.getName(), list);
         }
     }
-
-    public void takeEntitiesFromWorldWithinChunk(World world, int chunkX, int chunkZ,
-            ImmutableMap<String, IntBoundingBox> volumes, ImmutableMap<String, Box> boxes,
-            Set<UUID> existingEntities, BlockPos origin)
-    {
-        for (Map.Entry<String, IntBoundingBox> entry : volumes.entrySet())
-        {
-            String regionName = entry.getKey();
+    public void takeEntitiesFromWorldWithinChunk(World world, int chunkX, int chunkZ, ImmutableMap<String, IntBoundingBox> volumes, ImmutableMap<String, Box> boxes, Set<UUID> existingEntities, BlockPos origin) {
+        for (Map.Entry entry : volumes.entrySet()) {
+            String regionName = (String)entry.getKey();
             List<EntityInfo> list = this.entities.get(regionName);
-            Box box = boxes.get(regionName);
-
-            if (box == null || list == null)
-            {
-                continue;
-            }
-
-            net.minecraft.util.math.Box bb = PositionUtils.createAABBFrom(entry.getValue());
-            List<Entity> entities = world.getEntities((Entity) null, bb, null);
+            Box box = (Box)boxes.get((Object)regionName);
+            if (box == null || list == null) continue;
+            net.minecraft.util.math.Box bb = PositionUtils.createAABBFrom((IntBoundingBox) entry.getValue());
+            List<Entity> entities = world.getEntities((Entity)null, bb, null);
             BlockPos regionPosAbs = box.getPos1();
-
-            for (Entity entity : entities)
-            {
+            for (Entity entity : entities) {
+                CompoundTag tag;
                 UUID uuid = entity.getUuid();
-                /*
-                if (entity.posX >= bb.minX && entity.posX < bb.maxX &&
-                    entity.posY >= bb.minY && entity.posY < bb.maxY &&
-                    entity.posZ >= bb.minZ && entity.posZ < bb.maxZ)
-                */
-                if (existingEntities.contains(uuid) == false)
-                {
-                    CompoundTag tag = new CompoundTag();
-
-                    if (entity.saveToTag(tag))
-                    {
-                        Vec3d posVec = new Vec3d(entity.x - regionPosAbs.getX(), entity.y - regionPosAbs.getY(), entity.z - regionPosAbs.getZ());
-                        NBTUtils.writeEntityPositionToTag(posVec, tag);
-                        list.add(new EntityInfo(posVec, tag));
-                        existingEntities.add(uuid);
-                    }
-                }
+                if (existingEntities.contains(uuid) || !entity.saveToTag(tag = new CompoundTag())) continue;
+                Vec3d posVec = new Vec3d(entity.getX() - (double)regionPosAbs.getX(), entity.getY() - (double)regionPosAbs.getY(), entity.getZ() - (double)regionPosAbs.getZ());
+                NBTUtils.writeEntityPositionToTag((Vec3d)posVec, (CompoundTag)tag);
+                list.add(new EntityInfo(posVec, tag));
+                existingEntities.add(uuid);
             }
         }
     }
-
-    private void takeBlocksFromWorld(World world, List<Box> boxes)
-    {
+    private void takeBlocksFromWorld(World world, List<Box> boxes) {
         BlockPos.Mutable posMutable = new BlockPos.Mutable(0, 0, 0);
-
-        for (Box box : boxes)
-        {
+        for (Box box : boxes) {
             BlockPos size = box.getSize();
             final int sizeX = Math.abs(size.getX());
             final int sizeY = Math.abs(size.getY());

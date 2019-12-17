@@ -1,10 +1,18 @@
 package fi.dy.masa.litematica.util;
 
+import fi.dy.masa.litematica.config.Configs;
+import fi.dy.masa.litematica.data.DataManager;
+import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
+import fi.dy.masa.litematica.schematic.placement.SubRegionPlacement;
+import fi.dy.masa.litematica.util.PositionUtils;
+import fi.dy.masa.malilib.config.options.ConfigBoolean;
+import fi.dy.masa.malilib.util.Constants;
+import fi.dy.masa.malilib.util.InventoryUtils;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
-import com.google.common.base.Predicate;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
@@ -12,22 +20,19 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.World;
-import fi.dy.masa.litematica.config.Configs;
-import fi.dy.masa.litematica.data.DataManager;
-import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
-import fi.dy.masa.litematica.schematic.placement.SubRegionPlacement;
-import fi.dy.masa.malilib.util.Constants;
-import fi.dy.masa.malilib.util.InventoryUtils;
 
 public class EntityUtils
 {
-    public static final Predicate<Entity> NOT_PLAYER = new Predicate<Entity>()
-    {
+    public static final com.google.common.base.Predicate<Entity> NOT_PLAYER = new com.google.common.base.Predicate<Entity>(){
         @Override
         public boolean apply(@Nullable Entity entity)
         {
@@ -215,22 +220,35 @@ public class EntityUtils
         {
             for (Entity passenger : entity.getPassengerList())
             {
-                passenger.setPosition(entity.x, entity.y + entity.getMountedHeightOffset() + passenger.getHeightOffset(), entity.z);
+                passenger.setPosition(entity.getX(), entity.getY() + entity.getMountedHeightOffset() + passenger.getHeightOffset(), entity.getZ());
                 spawnEntityAndPassengersInWorld(passenger, world);
             }
         }
     }
 
+    public static void setEntityRotations(Entity entity, float yaw, float pitch) {
+        entity.yaw = yaw;
+        entity.prevYaw = yaw;
+        entity.pitch = pitch;
+        entity.prevPitch = pitch;
+        if (entity instanceof LivingEntity) {
+            LivingEntity livingBase = (LivingEntity)entity;
+            livingBase.headYaw = yaw;
+            livingBase.bodyYaw = yaw;
+            livingBase.prevHeadYaw = yaw;
+            livingBase.prevBodyYaw = yaw;
+        }
+    }
+
+
     public static List<Entity> getEntitiesWithinSubRegion(World world, BlockPos origin, BlockPos regionPos, BlockPos regionSize,
             SchematicPlacement schematicPlacement, SubRegionPlacement placement)
     {
-        // These are the untransformed relative positions
         BlockPos regionPosRelTransformed = PositionUtils.getTransformedBlockPos(regionPos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
-        BlockPos posEndAbs = PositionUtils.getTransformedPlacementPosition(regionSize.add(-1, -1, -1), schematicPlacement, placement).add(regionPosRelTransformed).add(origin);
-        BlockPos regionPosAbs = regionPosRelTransformed.add(origin);
-        net.minecraft.util.math.Box bb = PositionUtils.createEnclosingAABB(regionPosAbs, posEndAbs);
-
-        return world.getEntities((Entity) null, bb, null);
+        BlockPos posEndAbs = PositionUtils.getTransformedPlacementPosition(regionSize.add(-1, -1, -1), schematicPlacement, placement).add((Vec3i)regionPosRelTransformed).add((Vec3i)origin);
+        BlockPos regionPosAbs = regionPosRelTransformed.add((Vec3i)origin);
+        Box bb = PositionUtils.createEnclosingAABB(regionPosAbs, posEndAbs);
+        return world.getEntities((Entity)null, bb, null);
     }
 
     public static boolean shouldPickBlock(PlayerEntity player)

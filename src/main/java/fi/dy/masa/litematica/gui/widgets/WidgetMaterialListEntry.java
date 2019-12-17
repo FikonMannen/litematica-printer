@@ -4,7 +4,6 @@ import java.util.List;
 import javax.annotation.Nullable;
 import com.mojang.blaze3d.platform.GlStateManager;
 import fi.dy.masa.litematica.gui.Icons;
-import fi.dy.masa.litematica.gui.widgets.WidgetMaterialListEntry.ButtonListener;
 import fi.dy.masa.litematica.materials.MaterialListBase;
 import fi.dy.masa.litematica.materials.MaterialListBase.SortCriteria;
 import fi.dy.masa.litematica.materials.MaterialListEntry;
@@ -235,7 +234,7 @@ public class WidgetMaterialListEntry extends WidgetListEntrySortable<MaterialLis
 
             GlStateManager.pushMatrix();
             GlStateManager.disableLighting();
-            RenderUtils.enableGuiItemLighting();
+            RenderUtils.enableDiffuseLightingGui3D();
 
             //mc.getRenderItem().zLevel -= 110;
             y = this.y + 3;
@@ -245,7 +244,7 @@ public class WidgetMaterialListEntry extends WidgetListEntrySortable<MaterialLis
             //mc.getRenderItem().zLevel += 110;
 
             GlStateManager.disableBlend();
-            RenderUtils.disableItemLighting();
+            RenderUtils.disableDiffuseLighting();
             GlStateManager.popMatrix();
 
             super.render(mouseX, mouseY, selected);
@@ -306,7 +305,7 @@ public class WidgetMaterialListEntry extends WidgetListEntrySortable<MaterialLis
             RenderUtils.drawRect(x2, y1, 16, 16, 0x20FFFFFF); // light background for the item
 
             GlStateManager.disableLighting();
-            RenderUtils.enableGuiItemLighting();
+            RenderUtils.enableDiffuseLightingGui3D();
 
             //mc.getRenderItem().zLevel += 100;
             this.mc.getItemRenderer().renderGuiItem(mc.player, stack, x2, y1);
@@ -314,7 +313,7 @@ public class WidgetMaterialListEntry extends WidgetListEntrySortable<MaterialLis
             //mc.getRenderItem().zLevel -= 100;
             //GlStateManager.disableBlend();
 
-            RenderUtils.disableItemLighting();
+            RenderUtils.disableDiffuseLighting();
             GlStateManager.popMatrix();
         }
     }

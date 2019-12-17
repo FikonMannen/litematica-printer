@@ -1,22 +1,21 @@
 package fi.dy.masa.litematica.render;
-
-import javax.annotation.Nullable;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL13;
-import org.lwjgl.opengl.GL20;
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.FrustumWithOrigin;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VisibleRegion;
-import net.minecraft.client.texture.SpriteAtlasTexture;
 import fi.dy.masa.litematica.config.Configs;
 import fi.dy.masa.litematica.config.Hotkeys;
 import fi.dy.masa.litematica.render.schematic.WorldRendererSchematic;
 import fi.dy.masa.litematica.world.WorldSchematic;
+import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.render.shader.ShaderProgram;
+import javax.annotation.Nullable;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.Frustum;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.texture.SpriteAtlasTexture;
+import net.minecraft.client.util.math.Matrix4f;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Vec3d;
+import org.lwjgl.opengl.GL20;
 
 public class LitematicaRenderer
 {
@@ -26,9 +25,10 @@ public class LitematicaRenderer
 
     private MinecraftClient mc;
     private WorldRendererSchematic worldRenderer;
+    private Frustum frustum;
     private int frameCount;
     private long finishTimeNano;
-
+    private boolean renderCollidingSchematicBlocks;
     private boolean renderPiecewise;
     private boolean renderPiecewiseSchematic;
     private boolean renderPiecewiseBlocks;
@@ -75,22 +75,11 @@ public class LitematicaRenderer
 
     private void calculateFinishTime()
     {
-        long fpsLimit = this.mc.options.maxFps;
-        long fpsMin = Math.min(MinecraftClient.getCurrentFps(), fpsLimit);
-        fpsMin = Math.max(fpsMin, 60L);
-
-        if (Configs.Generic.RENDER_THREAD_NO_TIMEOUT.getBooleanValue())
-        {
-            this.finishTimeNano = Long.MAX_VALUE;
-        }
-        else
-        {
-            this.finishTimeNano = System.nanoTime() + Math.max(1000000000L / fpsMin / 2L, 0L);
-        }
+        long fpsTarget = 60L;
+        this.finishTimeNano = Configs.Generic.RENDER_THREAD_NO_TIMEOUT.getBooleanValue() ? Long.MAX_VALUE : System.nanoTime() + Math.max(1000000000L / fpsTarget / 2L, 0L);
     }
 
-    public void renderSchematicWorld(float partialTicks)
-    {
+    public void renderSchematicWorld(MatrixStack matrices, Matrix4f matrix, float partialTicks) {
         if (this.mc.skipGameRender == false)
         {
             this.mc.getProfiler().push("litematica_schematic_world_render");
@@ -100,128 +89,127 @@ public class LitematicaRenderer
                 this.mc.setCameraEntity(this.mc.player);
             }
 
-            GlStateManager.pushMatrix();
-            GlStateManager.enableDepthTest();
+            RenderSystem.pushMatrix();
+            RenderSystem.enableDepthTest();
 
             this.calculateFinishTime();
-            this.renderWorld(partialTicks, this.finishTimeNano);
+            this.renderWorld(matrices, matrix, partialTicks, this.finishTimeNano);
             this.cleanup();
 
-            GlStateManager.popMatrix();
+            RenderSystem.popMatrix();
 
             this.mc.getProfiler().pop();
         }
     }
 
-    private void renderWorld(float partialTicks, long finishTimeNano)
-    {
+    private void renderWorld(MatrixStack matrices, Matrix4f matrix, float partialTicks, long finishTimeNano) {
+    
         this.mc.getProfiler().push("culling");
 
-        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        RenderSystem.shadeModel(GL20.GL_SMOOTH);
 
         Camera camera = this.getCamera();
-        VisibleRegion visibleRegion = new FrustumWithOrigin();
-        visibleRegion.setOrigin(camera.getPos().x, camera.getPos().y, camera.getPos().z);
+        Vec3d cameraPos = camera.getPos();
+        double x = cameraPos.x;
+        double y = cameraPos.y;
+        double z = cameraPos.z;
+
+        Frustum frustum = new Frustum(matrices.peek().getModel(), matrix);
+       
+        frustum.setPosition(x, y, z);
 
         this.mc.getProfiler().swap("prepare_terrain");
-        this.mc.getTextureManager().bindTextureInner(SpriteAtlasTexture.BLOCK_ATLAS_TEX);
-        fi.dy.masa.malilib.render.RenderUtils.disableItemLighting();
+        this.mc.getTextureManager().bindTexture(SpriteAtlasTexture.BLOCK_ATLAS_TEX);
+        fi.dy.masa.malilib.render.RenderUtils.disableDiffuseLighting();
         WorldRendererSchematic worldRenderer = this.getWorldRenderer();
 
         this.mc.getProfiler().swap("terrain_setup");
-        worldRenderer.setupTerrain(camera, visibleRegion, this.frameCount++, this.mc.player.isSpectator());
-
+        worldRenderer.setupTerrain(camera, frustum, this.frameCount++, this.mc.player.isSpectator());
+        
         this.mc.getProfiler().swap("update_chunks");
         worldRenderer.updateChunks(finishTimeNano);
 
         this.mc.getProfiler().swap("terrain");
-        GlStateManager.matrixMode(GL11.GL_MODELVIEW);
-        GlStateManager.disableAlphaTest();
+        RenderSystem.matrixMode(GL20.GL_MODELVIEW);
+        RenderSystem.disableAlphaTest();
 
         if (Configs.Visuals.ENABLE_SCHEMATIC_BLOCKS.getBooleanValue())
         {
-            GlStateManager.pushMatrix();
+            RenderSystem.pushMatrix();
 
             if (Configs.Visuals.RENDER_COLLIDING_SCHEMATIC_BLOCKS.getBooleanValue())
             {
-                GlStateManager.enablePolygonOffset();
-                GlStateManager.polygonOffset(-0.2f, -0.4f);
+                RenderSystem.enablePolygonOffset();
+                RenderSystem.polygonOffset(-0.2f, -0.4f);
             }
 
             this.startShaderIfEnabled();
 
-            fi.dy.masa.malilib.render.RenderUtils.setupBlend();
+            RenderUtils.setupBlend();
 
-            worldRenderer.renderBlockLayer(RenderLayer.SOLID, camera);
-
-            worldRenderer.renderBlockLayer(RenderLayer.CUTOUT_MIPPED, camera);
-
-            this.mc.getTextureManager().getTexture(SpriteAtlasTexture.BLOCK_ATLAS_TEX).pushFilter(false, false);
-            worldRenderer.renderBlockLayer(RenderLayer.CUTOUT, camera);
-            this.mc.getTextureManager().getTexture(SpriteAtlasTexture.BLOCK_ATLAS_TEX).popFilter();
-
-            if (Configs.Visuals.RENDER_COLLIDING_SCHEMATIC_BLOCKS.getBooleanValue())
-            {
-                GlStateManager.polygonOffset(0f, 0f);
-                GlStateManager.disablePolygonOffset();
+            worldRenderer.renderBlockLayer(RenderLayer.getSolid(), matrices, camera);
+            worldRenderer.renderBlockLayer(RenderLayer.getCutoutMipped(), matrices, camera);
+            worldRenderer.renderBlockLayer(RenderLayer.getCutout(), matrices, camera);
+            if (Configs.Visuals.RENDER_COLLIDING_SCHEMATIC_BLOCKS.getBooleanValue()) {
+                RenderSystem.polygonOffset((float)0.0f, (float)0.0f);
+                RenderSystem.disablePolygonOffset();
             }
 
-            GlStateManager.disableBlend();
-            GlStateManager.shadeModel(GL11.GL_FLAT);
-            GlStateManager.alphaFunc(GL11.GL_GREATER, 0.01F);
+            RenderSystem.disableBlend();
+            RenderSystem.shadeModel(GL20.GL_FLAT);
+            RenderSystem.alphaFunc(GL20.GL_GREATER, 0.01F);
 
-            GlStateManager.matrixMode(GL11.GL_MODELVIEW);
-            GlStateManager.popMatrix();
+            RenderSystem.matrixMode(GL20.GL_MODELVIEW);
+            RenderSystem.popMatrix();
 
             this.mc.getProfiler().swap("entities");
 
-            GlStateManager.pushMatrix();
+            RenderSystem.pushMatrix();
 
-            fi.dy.masa.malilib.render.RenderUtils.enableItemLighting();
-            fi.dy.masa.malilib.render.RenderUtils.setupBlend();
+           RenderUtils.enableDiffuseLightingForLevel(matrices);
+           RenderUtils.setupBlend();
 
-            worldRenderer.renderEntities(camera, visibleRegion, partialTicks);
+           worldRenderer.renderEntities(camera, frustum, matrices, partialTicks);
+            RenderSystem.disableFog(); // Fixes Structure Blocks breaking all rendering
+            RenderSystem.disableBlend();
+            RenderUtils.disableDiffuseLighting();
 
-            GlStateManager.disableFog(); // Fixes Structure Blocks breaking all rendering
-            GlStateManager.disableBlend();
-            fi.dy.masa.malilib.render.RenderUtils.disableItemLighting();
+            RenderSystem.matrixMode(GL20.GL_MODELVIEW);
+            RenderSystem.popMatrix();
 
-            GlStateManager.matrixMode(GL11.GL_MODELVIEW);
-            GlStateManager.popMatrix();
-
-            GlStateManager.enableCull();
-            GlStateManager.alphaFunc(GL11.GL_GREATER, 0.1F);
-            this.mc.getTextureManager().bindTextureInner(SpriteAtlasTexture.BLOCK_ATLAS_TEX);
-            GlStateManager.shadeModel(GL11.GL_SMOOTH);
+            RenderSystem.enableCull();
+            RenderSystem.alphaFunc(GL20.GL_GREATER, 0.1F);
+            this.mc.getTextureManager().bindTexture(SpriteAtlasTexture.BLOCK_ATLAS_TEX);
+            RenderSystem.shadeModel(GL20.GL_SMOOTH);
 
             this.mc.getProfiler().swap("translucent");
-            GlStateManager.depthMask(false);
+            RenderSystem.depthMask(false);
 
-            GlStateManager.pushMatrix();
+            RenderSystem.pushMatrix();
 
-            fi.dy.masa.malilib.render.RenderUtils.setupBlend();
+            RenderUtils.setupBlend();
 
-            worldRenderer.renderBlockLayer(RenderLayer.TRANSLUCENT, camera);
-
-            GlStateManager.popMatrix();
+            worldRenderer.renderBlockLayer(RenderLayer.getTranslucent(), matrices, camera);
+            
+            RenderSystem.popMatrix();
 
             this.disableShader();
         }
 
         this.mc.getProfiler().swap("overlay");
-        this.renderSchematicOverlay();
+        this.renderSchematicOverlay(matrices);
 
-        GlStateManager.enableAlphaTest();
-        GlStateManager.disableBlend();
-        GlStateManager.depthMask(true);
-        GlStateManager.shadeModel(GL11.GL_FLAT);
-        GlStateManager.enableCull();
+        RenderSystem.enableAlphaTest();
+        RenderSystem.disableBlend();
+        RenderSystem.depthMask(true);
+        RenderSystem.shadeModel(GL20.GL_FLAT);
+        RenderSystem.enableCull();
 
         this.mc.getProfiler().pop();
     }
 
-    public void renderSchematicOverlay()
-    {
+    public void renderSchematicOverlay(MatrixStack matrices) {
+    
         boolean invert = Hotkeys.INVERT_OVERLAY_RENDER_STATE.getKeybind().isKeybindHeld();
 
         if (Configs.Visuals.ENABLE_SCHEMATIC_OVERLAY.getBooleanValue() != invert)
@@ -229,29 +217,31 @@ public class LitematicaRenderer
             boolean renderThrough = Configs.Visuals.SCHEMATIC_OVERLAY_RENDER_THROUGH.getBooleanValue() || Hotkeys.RENDER_OVERLAY_THROUGH_BLOCKS.getKeybind().isKeybindHeld();
             float lineWidth = (float) (renderThrough ? Configs.Visuals.SCHEMATIC_OVERLAY_OUTLINE_WIDTH_THROUGH.getDoubleValue() : Configs.Visuals.SCHEMATIC_OVERLAY_OUTLINE_WIDTH.getDoubleValue());
 
-            GlStateManager.pushMatrix();
-            GlStateManager.disableTexture();
-            GlStateManager.disableCull();
-            GlStateManager.alphaFunc(GL11.GL_GREATER, 0.001F);
-            GlStateManager.enablePolygonOffset();
-            GlStateManager.polygonOffset(-0.4f, -0.8f);
-            GlStateManager.lineWidth(lineWidth);
-            fi.dy.masa.malilib.render.RenderUtils.setupBlend();
-            fi.dy.masa.malilib.render.RenderUtils.color(1f, 1f, 1f, 1f);
-            RenderSystem.glMultiTexCoord2f(GL13.GL_TEXTURE1, 240.0F, 240.0F);
+            RenderSystem.pushMatrix();
+            RenderSystem.disableTexture();
+            RenderSystem.disableCull();
+            RenderSystem.alphaFunc(GL20.GL_GREATER, 0.001F);
+            RenderSystem.enablePolygonOffset();
+            RenderSystem.polygonOffset(-0.4f, -0.8f);
+            RenderSystem.lineWidth(lineWidth);
+            RenderUtils.setupBlend();
+            RenderUtils.color(1f, 1f, 1f, 1f);
+            RenderSystem.glMultiTexCoord2f(GL20.GL_TEXTURE1, 240.0F, 240.0F);
 
             if (renderThrough)
             {
-                GlStateManager.disableDepthTest();
+                RenderSystem.disableDepthTest();
+            } else {
+                RenderSystem.enableDepthTest();
             }
 
-            this.getWorldRenderer().renderBlockOverlays();
-
-            GlStateManager.enableDepthTest();
-            GlStateManager.polygonOffset(0f, 0f);
-            GlStateManager.disablePolygonOffset();
-            GlStateManager.enableTexture();
-            GlStateManager.popMatrix();
+            this.getWorldRenderer().renderBlockOverlays(matrices, this.getCamera());
+            
+            RenderSystem.enableDepthTest();
+            RenderSystem.polygonOffset(0f, 0f);
+            RenderSystem.disablePolygonOffset();
+            RenderSystem.enableTexture();
+            RenderSystem.popMatrix();
         }
     }
 
@@ -275,145 +265,144 @@ public class LitematicaRenderer
         }
     }
 
-    public void piecewisePrepareAndUpdate(VisibleRegion visibleRegion)
-    {
+    public void piecewisePrepareAndUpdate(Frustum frustum) {
         this.renderPiecewise = Configs.Generic.BETTER_RENDER_ORDER.getBooleanValue() &&
                                Configs.Visuals.ENABLE_RENDERING.getBooleanValue() &&
                                this.mc.getCameraEntity() != null;
         this.renderPiecewisePrepared = false;
         this.renderPiecewiseBlocks = false;
 
-        if (this.renderPiecewise && visibleRegion != null)
+        if (this.renderPiecewise && frustum != null)
         {
             boolean invert = Hotkeys.INVERT_GHOST_BLOCK_RENDER_STATE.getKeybind().isKeybindHeld();
             this.renderPiecewiseSchematic = Configs.Visuals.ENABLE_SCHEMATIC_RENDERING.getBooleanValue() != invert;
             this.renderPiecewiseBlocks = this.renderPiecewiseSchematic && Configs.Visuals.ENABLE_SCHEMATIC_BLOCKS.getBooleanValue();
-
+            this.renderCollidingSchematicBlocks = Configs.Visuals.RENDER_COLLIDING_SCHEMATIC_BLOCKS.getBooleanValue();
+           
             this.mc.getProfiler().push("litematica_culling");
 
             this.calculateFinishTime();
             WorldRendererSchematic worldRenderer = this.getWorldRenderer();
 
             this.mc.getProfiler().swap("litematica_terrain_setup");
-            worldRenderer.setupTerrain(this.getCamera(), visibleRegion, this.frameCount++, this.mc.player.isSpectator());
-
+            worldRenderer.setupTerrain(this.getCamera(), frustum, this.frameCount++, this.mc.player.isSpectator());
             this.mc.getProfiler().swap("litematica_update_chunks");
             worldRenderer.updateChunks(this.finishTimeNano);
 
             this.mc.getProfiler().pop();
-
+            this.frustum = frustum;
             this.renderPiecewisePrepared = true;
         }
     }
 
-    public void piecewiseRenderSolid(boolean renderColliding, float partialTicks)
-    {
+   
+    public void piecewiseRenderSolid(MatrixStack matrices, float partialTicks) {
         if (this.renderPiecewiseBlocks)
         {
             this.mc.getProfiler().push("litematica_blocks_solid");
 
-            if (renderColliding)
+            if (this.renderCollidingSchematicBlocks)
             {
-                GlStateManager.enablePolygonOffset();
-                GlStateManager.polygonOffset(-0.3f, -0.6f);
+                RenderSystem.enablePolygonOffset();
+                RenderSystem.polygonOffset(-0.3f, -0.6f);
             }
 
             this.startShaderIfEnabled();
 
-            this.getWorldRenderer().renderBlockLayer(RenderLayer.SOLID, this.getCamera());
+            this.getWorldRenderer().renderBlockLayer(RenderLayer.getSolid(), matrices, this.getCamera());
 
             this.disableShader();
 
-            if (renderColliding)
+            if (this.renderCollidingSchematicBlocks)
             {
-                GlStateManager.polygonOffset(0f, 0f);
-                GlStateManager.disablePolygonOffset();
+                RenderSystem.polygonOffset(0f, 0f);
+                RenderSystem.disablePolygonOffset();
             }
 
             this.mc.getProfiler().pop();
         }
     }
 
-    public void piecewiseRenderCutoutMipped(boolean renderColliding, float partialTicks)
-    {
+    public void piecewiseRenderCutoutMipped(MatrixStack matrices, float partialTicks) {
+    
         if (this.renderPiecewiseBlocks)
         {
             this.mc.getProfiler().push("litematica_blocks_cutout_mipped");
 
-            if (renderColliding)
+            if (this.renderCollidingSchematicBlocks)
             {
-                GlStateManager.enablePolygonOffset();
-                GlStateManager.polygonOffset(-0.3f, -0.6f);
+                RenderSystem.enablePolygonOffset();
+                RenderSystem.polygonOffset(-0.3f, -0.6f);
             }
 
             this.startShaderIfEnabled();
 
-            this.getWorldRenderer().renderBlockLayer(RenderLayer.CUTOUT_MIPPED, this.getCamera());
+            this.getWorldRenderer().renderBlockLayer(RenderLayer.getCutoutMipped(),matrices, this.getCamera());
 
             this.disableShader();
 
-            if (renderColliding)
+            if (this.renderCollidingSchematicBlocks)
             {
-                GlStateManager.polygonOffset(0f, 0f);
-                GlStateManager.disablePolygonOffset();
+                RenderSystem.polygonOffset(0f, 0f);
+                RenderSystem.disablePolygonOffset();
             }
 
             this.mc.getProfiler().pop();
         }
     }
 
-    public void piecewiseRenderCutout(boolean renderColliding, float partialTicks)
-    {
+    public void piecewiseRenderCutout(MatrixStack matrices, float partialTicks) {
+   
         if (this.renderPiecewiseBlocks)
         {
             this.mc.getProfiler().push("litematica_blocks_cutout");
 
-            if (renderColliding)
+            if (this.renderCollidingSchematicBlocks)
             {
-                GlStateManager.enablePolygonOffset();
-                GlStateManager.polygonOffset(-0.3f, -0.6f);
+                RenderSystem.enablePolygonOffset();
+                RenderSystem.polygonOffset(-0.3f, -0.6f);
             }
 
             this.startShaderIfEnabled();
 
-            this.getWorldRenderer().renderBlockLayer(RenderLayer.CUTOUT, this.getCamera());
+            this.getWorldRenderer().renderBlockLayer(RenderLayer.getCutout(),matrices, this.getCamera());
 
             this.disableShader();
 
-            if (renderColliding)
+            if (this.renderCollidingSchematicBlocks)
             {
-                GlStateManager.polygonOffset(0f, 0f);
-                GlStateManager.disablePolygonOffset();
+                RenderSystem.polygonOffset(0f, 0f);
+                RenderSystem.disablePolygonOffset();
             }
 
             this.mc.getProfiler().pop();
         }
     }
 
-    public void piecewiseRenderTranslucent(boolean renderColliding, float partialTicks)
-    {
+    public void piecewiseRenderTranslucent(MatrixStack matrices, float partialTicks) {
+   
         if (this.renderPiecewisePrepared)
         {
             if (this.renderPiecewiseBlocks)
             {
                 this.mc.getProfiler().push("litematica_translucent");
 
-                if (renderColliding)
+                if (this.renderCollidingSchematicBlocks)
                 {
-                    GlStateManager.enablePolygonOffset();
-                    GlStateManager.polygonOffset(-0.3f, -0.6f);
+                    RenderSystem.enablePolygonOffset();
+                    RenderSystem.polygonOffset(-0.3f, -0.6f);
                 }
 
                 this.startShaderIfEnabled();
 
-                this.getWorldRenderer().renderBlockLayer(RenderLayer.TRANSLUCENT, this.getCamera());
+                this.getWorldRenderer().renderBlockLayer(RenderLayer.getTranslucent(),matrices, this.getCamera());
 
                 this.disableShader();
 
-                if (renderColliding)
+                if (this.renderCollidingSchematicBlocks)
                 {
-                    GlStateManager.polygonOffset(0f, 0f);
-                    GlStateManager.disablePolygonOffset();
+                    RenderSystem.polygonOffset(0f, 0f);
+                    RenderSystem.disablePolygonOffset();
                 }
 
                 this.mc.getProfiler().pop();
@@ -423,7 +412,7 @@ public class LitematicaRenderer
             {
                 this.mc.getProfiler().push("litematica_overlay");
 
-                this.renderSchematicOverlay();
+                this.renderSchematicOverlay(matrices);
 
                 this.mc.getProfiler().pop();
             }
@@ -432,21 +421,21 @@ public class LitematicaRenderer
         }
     }
 
-    public void piecewiseRenderEntities(VisibleRegion visibleRegion, float partialTicks)
-    {
+    public void piecewiseRenderEntities(MatrixStack matrices, float partialTicks) {
+   
         if (this.renderPiecewiseBlocks)
         {
             this.mc.getProfiler().push("litematica_entities");
 
-            fi.dy.masa.malilib.render.RenderUtils.setupBlend();
+            RenderUtils.setupBlend();
 
             this.startShaderIfEnabled();
 
-            this.getWorldRenderer().renderEntities(this.getCamera(), visibleRegion, partialTicks);
+            this.getWorldRenderer().renderEntities(this.getCamera(), frustum,matrices, partialTicks);
 
             this.disableShader();
 
-            GlStateManager.disableBlend();
+            RenderSystem.disableBlend();
 
             this.mc.getProfiler().pop();
         }
