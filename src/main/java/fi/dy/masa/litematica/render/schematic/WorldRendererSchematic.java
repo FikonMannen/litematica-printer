@@ -212,7 +212,7 @@ public class WorldRendererSchematic
 
             if (entity != null)
             {
-                this.chunkRendererDispatcher.updateCameraPosition(entity.getX(), entity.getY());
+                this.chunkRendererDispatcher.updateCameraPosition(entity.getX(), entity.getZ());
             }
 
             this.renderEntitiesStartupCounter = 2;
@@ -485,7 +485,7 @@ public class WorldRendererSchematic
         double z = cameraPos.z;
 
         this.world.getProfiler().push("overlay_" + type.name());
-        this.world.getProfiler().push("filter_empty");
+        this.world.getProfiler().push("render");
 
         for (int i = this.renderInfos.size() - 1; i >= 0; --i)
         {
@@ -573,7 +573,7 @@ public class WorldRendererSchematic
             this.countEntitiesTotal = this.world.getRegularEntityCount();
 
             this.world.getProfiler().swap("regular_entities");
-            VertexConsumerProvider.Immediate entityVertexConsumers = this.bufferBuilders.getEffectVertexConsumers();
+            VertexConsumerProvider.Immediate entityVertexConsumers = this.bufferBuilders.getEntityVertexConsumers();
             DiffuseLighting.enableForLevel((Matrix4f)matrices.peek().getModel());
             LayerRange layerRange = DataManager.getRenderLayerRange();
             for (ChunkRendererSchematicVbo chunkRenderer : this.renderInfos) {

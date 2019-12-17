@@ -96,8 +96,9 @@ public class WidgetSchematicBrowser extends WidgetFileBrowserBase
         {
             x += 3;
             y += 3;
+            RenderUtils.color((float)1.0f, (float)1.0f, (float)1.0f, (float)1.0f);
             int textColor = 0xC0C0C0C0;
-            int valueColor = 0xC0FFFFFF;
+            int valueColor = -1;
 
             String str = StringUtils.translate("litematica.gui.label.schematic_info.name");
             this.drawString(str, x, y, textColor);

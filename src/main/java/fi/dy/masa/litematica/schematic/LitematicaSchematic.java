@@ -1147,11 +1147,11 @@ public class LitematicaSchematic
         if (nbt.contains("Version", Constants.NBT.TAG_INT))
         {
             final int version = nbt.getInt("Version");
-
+            int minecraftDataVersion = nbt.getInt("MinecraftDataVersion");
             if (version >= 1 && version <= SCHEMATIC_VERSION)
             {
                 this.metadata.readFromNBT(nbt.getCompound("Metadata"));
-                this.readSubRegionsFromNBT(nbt.getCompound("Regions"), version);
+                this.readSubRegionsFromNBT(nbt.getCompound("Regions"), version, minecraftDataVersion);
 
                 return true;
             }
@@ -1168,7 +1168,7 @@ public class LitematicaSchematic
         return false;
     }
 
-    private void readSubRegionsFromNBT(CompoundTag tag, int version)
+    private void readSubRegionsFromNBT(CompoundTag tag, int version, int minecraftDataVersion)
     {
         for (String regionName : tag.getKeys())
         {
@@ -1218,13 +1218,25 @@ public class LitematicaSchematic
                         BlockPos posMin = PositionUtils.getMinCorner(regionPos, posEndRel);
                         BlockPos posMax = PositionUtils.getMaxCorner(regionPos, posEndRel);
                         BlockPos size = posMax.subtract(posMin).add(1, 1, 1);
-
+                        palette = this.convertBlockStatePalette_1_12_to_1_13_2(palette, version, minecraftDataVersion);
                         LitematicaBlockStateContainer container = LitematicaBlockStateContainer.createFrom(palette, blockStateArr, size);
                         this.blockContainers.put(regionName, container);
                     }
                 }
             }
         }
+    }
+
+    private ListTag convertBlockStatePalette_1_12_to_1_13_2(ListTag oldPalette, int version, int minecraftDataVersion) {
+        if (version < 5 || minecraftDataVersion < 1631 && minecraftDataVersion > 0) {
+            ListTag newPalette = new ListTag();
+            int count = oldPalette.size();
+            for (int i = 0; i < count; ++i) {
+                newPalette.add(SchematicConversionMaps.get_1_13_2_StateTagFor_1_12_Tag(oldPalette.getCompound(i)));
+            }
+            return newPalette;
+        }
+        return oldPalette;
     }
 
     private List<EntityInfo> readEntitiesFromNBT(ListTag tagList)
