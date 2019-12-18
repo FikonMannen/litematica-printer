@@ -429,14 +429,16 @@ public class Printer {
 
                                         mc.interactionManager.interactBlock(mc.player, mc.world, hand, hitResult);
                                         interact++;
+
+                                        if (interact >= maxInteract) {
+                                            return ActionResult.SUCCESS;
+                                        }
                                     }
 
                                     if (clickTimes > 0) {
                                         cacheEasyPlacePosition(pos, true);
                                     }
-                                    if (interact >= maxInteract) {
-                                        return ActionResult.SUCCESS;
-                                    }
+                                  
                                 }
                             }
                         }
