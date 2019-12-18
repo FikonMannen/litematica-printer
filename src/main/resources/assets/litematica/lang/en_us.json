@@ -65,6 +65,8 @@
 
     "litematica.hotkeys.category.generic_hotkeys": "Generic hotkeys",
 
+    "litematica.info.schematic_fill.success": "Filled %s blocks with %s",
+    "litematica.info.schematic_fill.confirm": "Are you sure you want to fill? Double click to fill. This message will only be shown once.",
     "litematica.info.schematic_load.schematic_loaded": "Schematic '%s' successfully loaded to memory",
     "litematica.info.schematic_manager.preview.right_click_to_cancel": "Right click the button to cancel a pending preview operation",
     "litematica.info.schematic_manager.preview.set_preview_by_taking_a_screenshot": "Use the normal screenshot key to set the preview.\nOr right click the Set preview button to cancel setting the preview.",
@@ -478,6 +480,7 @@
     "litematica.tool_hud.block_1": "Block: %s",
     "litematica.tool_hud.block_2": "Replace: %s",
     "litematica.tool_hud.facing": "Facing: %s",
+    "litematica.tool_hud.fill_block": "Fill block: %s",
 
     "litematica.tool_mode.name.area_selection": "Area Selection",
     "litematica.tool_mode.name.delete": "Delete",

@@ -1,6 +1,8 @@
 package fi.dy.masa.litematica.event;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import fi.dy.masa.litematica.config.Configs;
 import fi.dy.masa.litematica.config.Hotkeys;
@@ -58,6 +60,7 @@ public class KeyCallbacks
 
         Hotkeys.CLONE_SELECTION.getKeybind().setCallback(callbackHotkeys);
         Hotkeys.EXECUTE_OPERATION.getKeybind().setCallback(callbackHotkeys);
+        Hotkeys.FILL_TO_SCHEMATIC.getKeybind().setCallback(callbackHotkeys);
         Hotkeys.LAYER_MODE_NEXT.getKeybind().setCallback(callbackHotkeys);
         Hotkeys.LAYER_MODE_PREVIOUS.getKeybind().setCallback(callbackHotkeys);
         Hotkeys.LAYER_NEXT.getKeybind().setCallback(callbackHotkeys);
@@ -114,6 +117,9 @@ public class KeyCallbacks
         Hotkeys.TOGGLE_VERIFIER_OVERLAY_RENDERING.getKeybind().setCallback(new KeyCallbackToggleBooleanConfigWithMessage(Configs.InfoOverlays.VERIFIER_OVERLAY_ENABLED));
         Hotkeys.TOOL_ENABLED_TOGGLE.getKeybind().setCallback(new KeyCallbackToggleBooleanConfigWithMessage(Configs.Generic.TOOL_ITEM_ENABLED));
     }
+
+    private static long lastFillAction = 0;
+    private static boolean showedFillInfo = false;
 
     private static class ValueChangeCallback implements IValueChangeCallback<ConfigString>
     {
@@ -173,6 +179,7 @@ public class KeyCallbacks
             boolean isToolSecondary = key == Hotkeys.TOOL_PLACE_CORNER_2.getKeybind();
             boolean isToolSelect = key == Hotkeys.TOOL_SELECT_ELEMENTS.getKeybind();
 
+            
             if (toolEnabled && hasTool)
             {
                 int maxDistance = 200;
@@ -251,6 +258,27 @@ public class KeyCallbacks
                 }
             }
 
+            if (key == Hotkeys.FILL_TO_SCHEMATIC.getKeybind()) {
+                ItemStack stack = mc.player.getMainHandStack();
+                if (stack.isEmpty()) {
+                    DataManager.getToolMode().setFillBlock(null);
+                } else
+                if (stack.getItem() instanceof BlockItem)
+                {
+                    DataManager.getToolMode().setFillBlock(((BlockItem)stack.getItem()).getBlock());
+                }
+                if (System.currentTimeMillis() - lastFillAction <= 1000) {
+                    lastFillAction = 0;
+                    SchematicUtils.fillToSchematic(mc, DataManager.getToolMode().getFillBlock());
+                } else {
+
+                    lastFillAction = System.currentTimeMillis();
+                    if (!showedFillInfo) {
+                        InfoUtils.showInGameMessage(MessageType.INFO, "litematica.info.schematic_fill.confirm");
+                        showedFillInfo = true;
+                    }
+                }
+            } else
             if (key == Hotkeys.OPEN_GUI_MAIN_MENU.getKeybind())
             {
                 GuiBase.openGui(new GuiMainMenu());
@@ -460,7 +488,7 @@ public class KeyCallbacks
             {
                 SchematicUtils.cloneSelectionArea(this.mc);
                 return true;
-            }
+            } 
             else if (key == Hotkeys.EXECUTE_OPERATION.getKeybind() && ((hasTool && toolEnabled) || Configs.Generic.EXECUTE_REQUIRE_TOOL.getBooleanValue() == false))
             {
                 if (DataManager.getSchematicProjectsManager().hasProjectOpen())

@@ -23,6 +23,7 @@ import fi.dy.masa.malilib.config.HudAlignment;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.util.BlockUtils;
 import fi.dy.masa.malilib.util.StringUtils;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
@@ -226,6 +227,12 @@ public class ToolHud extends InfoHud
                 {
                     lines.add(StringUtils.translate("litematica.tool_hud.block_2", this.getBlockString(state)));
                 }
+            }
+
+            if (mode.getFillBlock() != null) {
+                Block block = mode.getFillBlock();
+                
+                lines.add(StringUtils.translate("litematica.tool_hud.fill_block", block.getName().asString()));
             }
 
             str = green + Configs.Generic.SELECTION_CORNERS_MODE.getOptionListValue().getDisplayName() + rst;

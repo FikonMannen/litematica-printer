@@ -3,6 +3,7 @@ package fi.dy.masa.litematica.tool;
 import javax.annotation.Nullable;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.malilib.util.StringUtils;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 
@@ -26,6 +27,7 @@ public enum ToolMode
 
     @Nullable private BlockState blockPrimary;
     @Nullable private BlockState blockSecondary;
+    @Nullable private Block fillBlock;
 
     private ToolMode(String unlocName, boolean creativeOnly, boolean usesSchematic)
     {
@@ -78,14 +80,23 @@ public enum ToolMode
         return this.blockSecondary;
     }
 
+    public Block getFillBlock() {
+        return fillBlock; 
+    }
+
     public void setPrimaryBlock(@Nullable BlockState state)
     {
         this.blockPrimary = state;
     }
-
+    
     public void setSecondaryBlock(@Nullable BlockState state)
     {
         this.blockSecondary = state;
+    }
+
+    public void setFillBlock(@Nullable Block block)
+    {
+        this.fillBlock = block;
     }
 
     public String getName()

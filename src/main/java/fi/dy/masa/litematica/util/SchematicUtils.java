@@ -3,6 +3,10 @@ package fi.dy.masa.litematica.util;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
+
+import com.google.common.collect.ImmutableList;
+
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
@@ -41,6 +45,7 @@ import fi.dy.masa.litematica.schematic.placement.SubRegionPlacement;
 import fi.dy.masa.litematica.schematic.placement.SubRegionPlacement.RequiredEnabled;
 import fi.dy.masa.litematica.schematic.projects.SchematicProject;
 import fi.dy.masa.litematica.selection.AreaSelection;
+import fi.dy.masa.litematica.selection.Box;
 import fi.dy.masa.litematica.selection.SelectionManager;
 import fi.dy.masa.litematica.tool.ToolMode;
 import fi.dy.masa.litematica.util.RayTraceUtils.RayTraceWrapper;
@@ -111,6 +116,59 @@ public class SchematicUtils
         return setTargetedSchematicBlockState(mc, Blocks.AIR.getDefaultState());
     }
 
+    public static boolean fillToSchematic(MinecraftClient mc, Block fillBlock) {
+
+        if (fillBlock == null) return false;
+    
+        AreaSelection area = DataManager.getSelectionManager().getCurrentSelection();
+        
+        if (area == null)
+        {
+            InfoUtils.showGuiOrInGameMessage(MessageType.ERROR, "litematica.message.error.no_area_selected");
+            return false;
+        }
+
+        if (area.getAllSubRegionBoxes().size() > 0)
+        {
+            Box currentBox = area.getSelectedSubRegionBox();
+            final ImmutableList<Box> boxes = currentBox != null ? ImmutableList.of(currentBox) : ImmutableList.copyOf(area.getAllSubRegionBoxes());
+            
+
+            for (Box box : boxes)
+            {
+                BlockPos pos1 = box.getPos1();
+                BlockPos pos2 = box.getPos2();
+
+                int minX = Math.min(pos1.getX(),pos2.getX());
+                int minY = Math.min(pos1.getY(),pos2.getY());
+                int minZ = Math.min(pos1.getZ(),pos2.getZ());
+
+                int maxX = Math.max(pos1.getX(),pos2.getX());
+                int maxY = Math.max(pos1.getY(),pos2.getY());
+                int maxZ = Math.max(pos1.getZ(),pos2.getZ());
+
+
+                for (int x = minX; x <= maxX; x++) {
+                    for (int y = minY; y <= maxY; y++) {
+                        for (int z = minZ; z <= maxZ; z++) {
+
+                            BlockPos pos = new BlockPos(x,y,z);
+
+
+                            setTargetedSchematicBlockState(pos, fillBlock.getDefaultState());
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+        else
+        {
+            InfoUtils.showGuiOrInGameMessage(MessageType.ERROR, "litematica.message.error.empty_area_selection");
+            return false;
+        }
+
+    }
     public static boolean placeSchematicBlock(MinecraftClient mc)
     {
         ReplacementInfo info = getTargetInfo(mc);
