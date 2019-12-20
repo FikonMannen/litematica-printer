@@ -19,23 +19,28 @@ import fi.dy.masa.malilib.util.IntBoundingBox;
 import fi.dy.masa.malilib.util.SubChunkPos;
 import net.minecraft.block.AbstractButtonBlock;
 import net.minecraft.block.BedBlock;
+import net.minecraft.block.BeehiveBlock;
 import net.minecraft.block.BellBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.CarvedPumpkinBlock;
 import net.minecraft.block.ChestBlock;
 import net.minecraft.block.ComparatorBlock;
 import net.minecraft.block.DispenserBlock;
 import net.minecraft.block.DoorBlock;
 import net.minecraft.block.DropperBlock;
 import net.minecraft.block.EndPortalFrameBlock;
+import net.minecraft.block.EndRodBlock;
 import net.minecraft.block.EnderChestBlock;
 import net.minecraft.block.FenceGateBlock;
 import net.minecraft.block.FurnaceBlock;
 import net.minecraft.block.GrindstoneBlock;
 import net.minecraft.block.HopperBlock;
 import net.minecraft.block.LadderBlock;
+import net.minecraft.block.LecternBlock;
 import net.minecraft.block.LeverBlock;
 import net.minecraft.block.LogBlock;
+import net.minecraft.block.LoomBlock;
 import net.minecraft.block.Material;
 import net.minecraft.block.NoteBlock;
 import net.minecraft.block.ObserverBlock;
@@ -46,6 +51,7 @@ import net.minecraft.block.RepeaterBlock;
 import net.minecraft.block.SignBlock;
 import net.minecraft.block.SlabBlock;
 import net.minecraft.block.StairsBlock;
+import net.minecraft.block.StonecutterBlock;
 import net.minecraft.block.TorchBlock;
 import net.minecraft.block.TrapdoorBlock;
 import net.minecraft.block.TripwireHookBlock;
@@ -124,6 +130,11 @@ public class Printer {
         addFD(ComparatorBlock.class, new FacingData(1, true));
         addFD(EnderChestBlock.class, new FacingData(1, true));
         addFD(FurnaceBlock.class, new FacingData(1, true));
+        addFD(LecternBlock.class, new FacingData(1, true));
+        addFD(LoomBlock.class, new FacingData(1, true));
+        addFD(BeehiveBlock.class, new FacingData(1, true));
+        addFD(StonecutterBlock.class, new FacingData(1, true));
+        addFD(CarvedPumpkinBlock.class, new FacingData(1, true));
         addFD(PumpkinBlock.class, new FacingData(1, true));
         addFD(EndPortalFrameBlock.class, new FacingData(1, true));
 
@@ -810,6 +821,8 @@ public class Printer {
             return stateSchematic.get(TrapdoorBlock.FACING);
         } else if (blockSchematic instanceof TripwireHookBlock) {
             return stateSchematic.get(TripwireHookBlock.FACING);
+        } else if (blockSchematic instanceof EndRodBlock) {
+            return stateSchematic.get(EndRodBlock.FACING);
         }
 
         // TODO: Add more for other blocks
