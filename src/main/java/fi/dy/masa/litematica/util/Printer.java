@@ -502,7 +502,7 @@ public class Printer {
                         Block blockSchematic = stateSchematic.getBlock();
                         if (blockSchematic instanceof WallMountedBlock || blockSchematic instanceof TorchBlock
                                 || blockSchematic instanceof LadderBlock || blockSchematic instanceof TrapdoorBlock
-                                || blockSchematic instanceof TripwireHookBlock || blockSchematic instanceof SignBlock) {
+                                || blockSchematic instanceof TripwireHookBlock || blockSchematic instanceof SignBlock || blockSchematic instanceof EndRodBlock) {
 
                             /*
                              * Some blocks, especially wall mounted blocks must be placed on another for
