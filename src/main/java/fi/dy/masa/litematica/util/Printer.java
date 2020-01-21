@@ -141,8 +141,8 @@ public class Printer {
         // Top/bottom placable side mountable blocks
         addFD(LeverBlock.class, new FacingData(2, false));
         addFD(AbstractButtonBlock.class, new FacingData(2, false));
-        addFD(BellBlock.class, new FacingData(2, false));
-        addFD(GrindstoneBlock.class, new FacingData(2, false));
+     //addFD(BellBlock.class, new FacingData(2, false));
+        //addFD(GrindstoneBlock.class, new FacingData(2, false));
 
     }
 
@@ -192,6 +192,7 @@ public class Printer {
 
                 return true;
             } else {
+               
                 int slot = inv.getSlotWithStack(stack);
                 boolean shouldPick = inv.selectedSlot != slot;
                 boolean canPick = slot != -1;
@@ -460,7 +461,7 @@ public class Printer {
                     }
 
                     ItemStack stack = MaterialCache.getInstance().getItemForState(stateSchematic);
-                    if (stack.isEmpty() == false) {
+                    if (stack.isEmpty() == false && (mc.player.abilities.creativeMode || mc.player.inventory.getSlotWithStack(stack) != -1)) {
 
                         if (stateSchematic == stateClient) {
                             continue;
