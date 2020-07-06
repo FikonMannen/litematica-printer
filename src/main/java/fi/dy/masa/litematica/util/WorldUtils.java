@@ -437,7 +437,7 @@ public class WorldUtils
 
         if (result == ActionResult.FAIL)
         {
-            InfoUtils.showGuiOrInGameMessage(MessageType.WARNING, "litematica.message.easy_place_fail");
+       //     InfoUtils.showGuiOrInGameMessage(MessageType.WARNING, "litematica.message.easy_place_fail");
             return true;
         }
 
@@ -512,7 +512,7 @@ public class WorldUtils
 
         if (cancel)
         {
-            InfoUtils.showGuiOrInGameMessage(MessageType.WARNING, "litematica.message.placement_restriction_fail");
+        InfoUtils.showGuiOrInGameMessage(MessageType.WARNING, "litematica.message.placement_restriction_fail");
         }
 
         return cancel;

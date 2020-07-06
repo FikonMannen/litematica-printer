@@ -10,6 +10,7 @@
       "IMixinStairsBlock",
       "IMixinVineBlock",
       "MixinBlockStateFlattening",
+      "MixinChestBlock",
       "MixinClientPlayNetworkHandler",
       "MixinClientWorld",
       "MixinDebugHud",

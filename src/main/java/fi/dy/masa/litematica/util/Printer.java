@@ -696,6 +696,11 @@ public class Printer {
         // return true;
         // }
 
+        if (stateClient.getMaterial().isReplaceable()) {
+            return false;
+        }
+
+
         return true;
     }
 

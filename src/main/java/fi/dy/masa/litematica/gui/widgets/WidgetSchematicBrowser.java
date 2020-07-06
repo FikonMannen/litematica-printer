@@ -234,7 +234,7 @@ public class WidgetSchematicBrowser extends WidgetFileBrowserBase
     {
         int[] previewImageData = meta.getPreviewImagePixelData();
 
-        if (previewImageData != null && previewImageData.length > 0)
+        if (previewImageData != null && previewImageData.length > 0 && false)
         {
             int size = (int) Math.sqrt(previewImageData.length);
 
