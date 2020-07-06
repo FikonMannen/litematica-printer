@@ -671,7 +671,7 @@ public class WorldRendererSchematic
                     if (chunk != null && data instanceof ChunkRenderDataSchematic &&
                         data.getTimeBuilt() >= chunk.getTimeCreated())
                     {
-                        for (int i = 0; i < tiles.size(); i++)
+                        for (BlockEntity te : tiles)
                         {
                             try
                             {
