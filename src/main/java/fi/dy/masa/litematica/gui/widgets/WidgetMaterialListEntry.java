@@ -2,7 +2,9 @@ package fi.dy.masa.litematica.gui.widgets;
 
 import java.util.List;
 import javax.annotation.Nullable;
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
 import fi.dy.masa.litematica.gui.Icons;
 import fi.dy.masa.litematica.materials.MaterialListBase;
 import fi.dy.masa.litematica.materials.MaterialListBase.SortCriteria;
@@ -14,7 +16,6 @@ import fi.dy.masa.malilib.gui.button.IButtonActionListener;
 import fi.dy.masa.malilib.gui.widgets.WidgetListEntrySortable;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.StringUtils;
-import net.minecraft.item.ItemStack;
 
 public class WidgetMaterialListEntry extends WidgetListEntrySortable<MaterialListEntry>
 {
@@ -176,7 +177,7 @@ public class WidgetMaterialListEntry extends WidgetListEntrySortable<MaterialLis
     }
 
     @Override
-    public void render(int mouseX, int mouseY, boolean selected)
+    public void render(int mouseX, int mouseY, boolean selected, MatrixStack matrixStack)
     {
         // Draw a lighter background for the hovered and the selected entry
         if (this.header1 == null && (selected || this.isMouseOver(mouseX, mouseY)))
@@ -204,10 +205,10 @@ public class WidgetMaterialListEntry extends WidgetListEntrySortable<MaterialLis
         {
             if (this.listWidget.getSearchBarWidget().isSearchOpen() == false)
             {
-                this.drawString(x1, y, color, this.header1);
-                this.drawString(x2, y, color, this.header2);
-                this.drawString(x3, y, color, this.header3);
-                this.drawString(x4, y, color, this.header4);
+                this.drawString(x1, y, color, this.header1, matrixStack);
+                this.drawString(x2, y, color, this.header2, matrixStack);
+                this.drawString(x3, y, color, this.header3, matrixStack);
+                this.drawString(x4, y, color, this.header4, matrixStack);
 
                 this.renderColumnHeader(mouseX, mouseY, Icons.ARROW_DOWN, Icons.ARROW_UP);
             }
@@ -222,42 +223,42 @@ public class WidgetMaterialListEntry extends WidgetListEntrySortable<MaterialLis
             String gold = GuiBase.TXT_GOLD;
             String red = GuiBase.TXT_RED;
             String pre;
-            this.drawString(x1 + 20, y, color, this.entry.getStack().getName().getString());
+            this.drawString(x1 + 20, y, color, this.entry.getStack().getName().getString(), matrixStack);
 
-            this.drawString(x2, y, color, String.valueOf(countTotal));
+            this.drawString(x2, y, color, String.valueOf(countTotal), matrixStack);
 
             pre = countMissing == 0 ? green : (countAvailable >= countMissing ? gold : red);
-            this.drawString(x3, y, color, pre + String.valueOf(countMissing));
+            this.drawString(x3, y, color, pre + String.valueOf(countMissing), matrixStack);
 
             pre = countAvailable >= countMissing ? green : red;
-            this.drawString(x4, y, color, pre + String.valueOf(countAvailable));
+            this.drawString(x4, y, color, pre + String.valueOf(countAvailable), matrixStack);
 
-            GlStateManager.pushMatrix();
-            GlStateManager.disableLighting();
-            RenderUtils.enableGuiItemLighting();
+            RenderSystem.pushMatrix();
+            RenderSystem.disableLighting();
+            RenderUtils.enableDiffuseLightingGui3D();
 
             //mc.getRenderItem().zLevel -= 110;
             y = this.y + 3;
             RenderUtils.drawRect(x1, y, 16, 16, 0x20FFFFFF); // light background for the item
-            this.mc.getItemRenderer().renderGuiItem(this.mc.player, this.entry.getStack(), x1, y);
+            this.mc.getItemRenderer().renderInGui(this.entry.getStack(), x1, y);
             //mc.getRenderItem().renderItemOverlayIntoGUI(mc.fontRenderer, this.entry.getStack(), x1, y, null);
             //mc.getRenderItem().zLevel += 110;
 
-            GlStateManager.disableBlend();
-            RenderUtils.disableItemLighting();
-            GlStateManager.popMatrix();
+            RenderSystem.disableBlend();
+            RenderUtils.disableDiffuseLighting();
+            RenderSystem.popMatrix();
 
-            super.render(mouseX, mouseY, selected);
+            super.render(mouseX, mouseY, selected, matrixStack);
         }
     }
 
     @Override
-    public void postRenderHovered(int mouseX, int mouseY, boolean selected)
+    public void postRenderHovered(int mouseX, int mouseY, boolean selected, MatrixStack matrixStack)
     {
         if (this.entry != null)
         {
-            GlStateManager.pushMatrix();
-            GlStateManager.translatef(0, 0, 200);
+            RenderSystem.pushMatrix();
+            RenderSystem.translatef(0, 0, 200);
 
             String header1 = GuiBase.TXT_BOLD + StringUtils.translate(HEADERS[0]);
             String header2 = GuiBase.TXT_BOLD + StringUtils.translate(HEADERS[1]);
@@ -291,30 +292,30 @@ public class WidgetMaterialListEntry extends WidgetListEntrySortable<MaterialLis
             int y1 = y;
             y += 4;
 
-            this.drawString(x1     , y, 0xFFFFFFFF, header1);
-            this.drawString(x2 + 20, y, 0xFFFFFFFF, stackName);
+            this.drawString(x1     , y, 0xFFFFFFFF, header1  , matrixStack);
+            this.drawString(x2 + 20, y, 0xFFFFFFFF, stackName, matrixStack);
             y += 16;
 
-            this.drawString(x1, y, 0xFFFFFFFF, header2);
-            this.drawString(x2, y, 0xFFFFFFFF, strCountTotal);
+            this.drawString(x1, y, 0xFFFFFFFF, header2      , matrixStack);
+            this.drawString(x2, y, 0xFFFFFFFF, strCountTotal, matrixStack);
             y += 16;
 
-            this.drawString(x1, y, 0xFFFFFFFF, header3);
-            this.drawString(x2, y, 0xFFFFFFFF, strCountMissing);
+            this.drawString(x1, y, 0xFFFFFFFF, header3        , matrixStack);
+            this.drawString(x2, y, 0xFFFFFFFF, strCountMissing, matrixStack);
 
             RenderUtils.drawRect(x2, y1, 16, 16, 0x20FFFFFF); // light background for the item
 
-            GlStateManager.disableLighting();
-            RenderUtils.enableGuiItemLighting();
+            RenderSystem.disableLighting();
+            RenderUtils.enableDiffuseLightingGui3D();
 
             //mc.getRenderItem().zLevel += 100;
-            this.mc.getItemRenderer().renderGuiItem(mc.player, stack, x2, y1);
+            this.mc.getItemRenderer().renderInGui(stack, x2, y1);
             //mc.getRenderItem().renderItemOverlayIntoGUI(mc.fontRenderer, stack, x1, y, null);
             //mc.getRenderItem().zLevel -= 100;
-            //GlStateManager.disableBlend();
+            //RenderSystem.disableBlend();
 
-            RenderUtils.disableItemLighting();
-            GlStateManager.popMatrix();
+            RenderUtils.disableDiffuseLighting();
+            RenderSystem.popMatrix();
         }
     }
 

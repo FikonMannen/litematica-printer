@@ -4,12 +4,13 @@
     "compatibilityLevel": "JAVA_8",
     "minVersion": "0.7",
     "client": [
+    	"IMixinBlockModelRenderer",
         "MixinClientPlayNetworkHandler",
         "MixinClientWorld",
         "MixinDebugHud",
-        "MixinGameRenderer",
         "MixinIntegratedServer",
         "MixinMinecraftClient",
+        "MixinModelOverride",
         "MixinRailBlocks",
         "MixinWorldChunk",
         "MixinWorldRenderer"

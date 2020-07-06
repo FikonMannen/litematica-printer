@@ -10,41 +10,43 @@ import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.lwjgl.opengl.GL11;
-import com.google.common.collect.Lists;
-import com.mojang.blaze3d.platform.GLX;
-import com.mojang.blaze3d.platform.GlStateManager;
-import fi.dy.masa.litematica.data.DataManager;
-import fi.dy.masa.litematica.render.schematic.ChunkRendererSchematicVbo.OverlayRenderType;
-import fi.dy.masa.litematica.world.ChunkSchematic;
-import fi.dy.masa.litematica.world.WorldSchematic;
-import fi.dy.masa.malilib.render.RenderUtils;
-import fi.dy.masa.malilib.util.LayerRange;
-import fi.dy.masa.malilib.util.SubChunkPos;
-import net.minecraft.block.BlockRenderLayer;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.VertexBuffer;
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferBuilderStorage;
 import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.VertexFormatElement;
+import net.minecraft.client.render.DiffuseLighting;
+import net.minecraft.client.render.Frustum;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.render.VisibleRegion;
 import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.block.entity.BlockEntityRenderDispatcher;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.fluid.FluidState;
-import net.minecraft.util.TypeFilterableList;
+import net.minecraft.util.collection.TypeFilterableList;
 import net.minecraft.util.crash.CrashException;
 import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.crash.CrashReportSection;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.ExtendedBlockView;
+import net.minecraft.world.BlockRenderView;
 import net.minecraft.world.chunk.WorldChunk;
+import fi.dy.masa.litematica.data.DataManager;
+import fi.dy.masa.litematica.render.schematic.ChunkRendererSchematicVbo.OverlayRenderType;
+import fi.dy.masa.litematica.world.ChunkSchematic;
+import fi.dy.masa.litematica.world.WorldSchematic;
+import fi.dy.masa.malilib.util.LayerRange;
+import fi.dy.masa.malilib.util.SubChunkPos;
 
 public class WorldRendererSchematic
 {
@@ -54,6 +56,8 @@ public class WorldRendererSchematic
     private final BlockModelRendererSchematic blockModelRenderer;
     private final Set<BlockEntity> blockEntities = new HashSet<>();
     private final List<ChunkRendererSchematicVbo> renderInfos = new ArrayList<>(1024);
+    private final VertexFormat vertexFormat = VertexFormats.POSITION_COLOR_TEXTURE_LIGHT_NORMAL;
+    private final BufferBuilderStorage bufferBuilders;
     private Set<ChunkRendererSchematicVbo> chunksToUpdate = new LinkedHashSet<>();
     private WorldSchematic world;
     private ChunkRenderDispatcherSchematic chunkRendererDispatcher;
@@ -63,14 +67,13 @@ public class WorldRendererSchematic
     private int cameraChunkX = Integer.MIN_VALUE;
     private int cameraChunkY = Integer.MIN_VALUE;
     private int cameraChunkZ = Integer.MIN_VALUE;
-    private double lastViewEntityX = Double.MIN_VALUE;
-    private double lastViewEntityY = Double.MIN_VALUE;
-    private double lastViewEntityZ = Double.MIN_VALUE;
-    private float lastViewEntityPitch = Float.MIN_VALUE;
-    private float lastViewEntityYaw = Float.MIN_VALUE;
+    private double lastCameraX = Double.MIN_VALUE;
+    private double lastCameraY = Double.MIN_VALUE;
+    private double lastCameraZ = Double.MIN_VALUE;
+    private float lastCameraPitch = Float.MIN_VALUE;
+    private float lastCameraYaw = Float.MIN_VALUE;
     private ChunkRenderDispatcherLitematica renderDispatcher;
-    private ChunkRendererListSchematicBase renderContainer;
-    private IChunkRendererFactory renderChunkFactory;
+    private final IChunkRendererFactory renderChunkFactory;
     //private ShaderGroup entityOutlineShader;
     //private boolean entityOutlinesRendered;
 
@@ -80,32 +83,21 @@ public class WorldRendererSchematic
     private int countEntitiesRendered;
     private int countEntitiesHidden;
 
-    private boolean vboEnabled;
-    private double prevRenderSortX;
-    private double prevRenderSortY;
-    private double prevRenderSortZ;
+    private double lastTranslucentSortX;
+    private double lastTranslucentSortY;
+    private double lastTranslucentSortZ;
     private boolean displayListEntitiesDirty = true;
 
     public WorldRendererSchematic(MinecraftClient mc)
     {
         this.mc = mc;
         this.entityRenderDispatcher = mc.getEntityRenderManager();
+        this.bufferBuilders = mc.getBufferBuilders();
 
-        this.vboEnabled = GLX.useVbo();
-
-        if (this.vboEnabled)
-        {
-            this.renderContainer = new ChunkRendererListSchematicVbo();
-            this.renderChunkFactory = new RenderChunkFactoryVbo();
-        }
-        else
-        {
-            this.renderContainer = new ChunkRendererListSchematicDisplaylist();
-            this.renderChunkFactory = new RenderChunkFactoryList();
-        }
+        this.renderChunkFactory = new RenderChunkFactoryVbo();
 
         this.blockRenderManager = MinecraftClient.getInstance().getBlockRenderManager();
-        this.blockModelRenderer = new BlockModelRendererSchematic(mc.getBlockColorMap());
+        this.blockModelRenderer = new BlockModelRendererSchematic(mc.getBlockColors());
     }
 
     public void markNeedsUpdate()
@@ -117,7 +109,7 @@ public class WorldRendererSchematic
     {
         int rcTotal = this.chunkRendererDispatcher != null ? this.chunkRendererDispatcher.renderers.length : 0;
         int rcRendered = this.chunkRendererDispatcher != null ? this.getRenderedChunks() : 0;
-        return String.format("C: %d/%d %sD: %d, L: %d, %s", rcRendered, rcTotal, this.mc.field_1730 ? "(s) " : "", this.renderDistanceChunks, 0, this.renderDispatcher == null ? "null" : this.renderDispatcher.getDebugInfo());
+        return String.format("C: %d/%d %sD: %d, L: %d, %s", rcRendered, rcTotal, this.mc.chunkCullingEnabled ? "(s) " : "", this.renderDistanceChunks, 0, this.renderDispatcher == null ? "null" : this.renderDispatcher.getDebugInfo());
     }
 
     public String getDebugInfoEntities()
@@ -190,20 +182,6 @@ public class WorldRendererSchematic
             this.displayListEntitiesDirty = true;
             this.renderDistanceChunks = this.mc.options.viewDistance;
 
-            boolean vboEnabledPrevious = this.vboEnabled;
-            this.vboEnabled = GLX.useVbo();
-
-            if (this.vboEnabled == false && vboEnabledPrevious)
-            {
-                this.renderContainer = new ChunkRendererListSchematicDisplaylist();
-                this.renderChunkFactory = new RenderChunkFactoryList();
-            }
-            else if (this.vboEnabled && vboEnabledPrevious == false)
-            {
-                this.renderContainer = new ChunkRendererListSchematicVbo();
-                this.renderChunkFactory = new RenderChunkFactoryVbo();
-            }
-
             if (this.chunkRendererDispatcher != null)
             {
                 this.chunkRendererDispatcher.delete();
@@ -222,7 +200,7 @@ public class WorldRendererSchematic
 
             if (entity != null)
             {
-                this.chunkRendererDispatcher.updateCameraPosition(entity.x, entity.z);
+                this.chunkRendererDispatcher.updateCameraPosition(entity.getX(), entity.getZ());
             }
 
             this.renderEntitiesStartupCounter = 2;
@@ -235,7 +213,7 @@ public class WorldRendererSchematic
         this.renderDispatcher.stopChunkUpdates();
     }
 
-    public void setupTerrain(Camera camera, VisibleRegion visibleRegion, int frameCount, boolean playerSpectator)
+    public void setupTerrain(Camera camera, Frustum frustum, int frameCount, boolean playerSpectator)
     {
         this.world.getProfiler().push("setup_terrain");
 
@@ -255,9 +233,9 @@ public class WorldRendererSchematic
 
         this.world.getProfiler().push("camera");
 
-        double entityX = entity.x;
-        double entityY = entity.y;
-        double entityZ = entity.z;
+        double entityX = entity.getX();
+        double entityY = entity.getY();
+        double entityZ = entity.getZ();
 
         double diffX = entityX - this.lastCameraChunkUpdateX;
         double diffY = entityY - this.lastCameraChunkUpdateY;
@@ -278,11 +256,13 @@ public class WorldRendererSchematic
         }
 
         this.world.getProfiler().swap("renderlist_camera");
-        double cameraX = camera.getPos().x;
-        double cameraY = camera.getPos().y;
-        double cameraZ = camera.getPos().z;
 
-        this.renderContainer.setCameraPosition(cameraX, cameraY, cameraZ);
+        Vec3d cameraPos = camera.getPos();
+        double cameraX = cameraPos.x;
+        double cameraY = cameraPos.y;
+        double cameraZ = cameraPos.z;
+
+        this.renderDispatcher.setCameraPosition(cameraPos);
 
         this.world.getProfiler().swap("culling");
         BlockPos viewPos = new BlockPos(cameraX, cameraY + (double) entity.getStandingEyeHeight(), cameraZ);
@@ -293,16 +273,16 @@ public class WorldRendererSchematic
         BlockPos viewPosSubChunk = new BlockPos(viewSubChunk.getX() << 4, viewSubChunk.getY() << 4, viewSubChunk.getZ() << 4);
 
         this.displayListEntitiesDirty = this.displayListEntitiesDirty || this.chunksToUpdate.isEmpty() == false ||
-                entityX != this.lastViewEntityX ||
-                entityY != this.lastViewEntityY ||
-                entityZ != this.lastViewEntityZ ||
-                entity.pitch != this.lastViewEntityPitch ||
-                entity.yaw != this.lastViewEntityYaw;
-        this.lastViewEntityX = cameraX;
-        this.lastViewEntityY = cameraY;
-        this.lastViewEntityZ = cameraZ;
-        this.lastViewEntityPitch = camera.getPitch();
-        this.lastViewEntityYaw = camera.getYaw();
+                entityX != this.lastCameraX ||
+                entityY != this.lastCameraY ||
+                entityZ != this.lastCameraZ ||
+                entity.pitch != this.lastCameraPitch ||
+                entity.yaw != this.lastCameraYaw;
+        this.lastCameraX = cameraX;
+        this.lastCameraY = cameraY;
+        this.lastCameraZ = cameraZ;
+        this.lastCameraPitch = camera.getPitch();
+        this.lastCameraYaw = camera.getYaw();
 
         this.world.getProfiler().swap("update");
 
@@ -344,7 +324,7 @@ public class WorldRendererSchematic
 
                     if (chunkRenderer != null)
                     {
-                        if (visibleRegion.intersects(chunkRenderer.getBoundingBox()))
+                        if (frustum.isVisible(chunkRenderer.getBoundingBox()))
                         {
                             //if (GuiBase.isCtrlDown()) System.out.printf("add @ %s\n", subChunk);
                             if (chunkRenderer.needsUpdate() && subChunkCornerPos.equals(viewPosSubChunk))
@@ -370,7 +350,7 @@ public class WorldRendererSchematic
             if (chunkRendererTmp.needsUpdate() || set.contains(chunkRendererTmp))
             {
                 this.displayListEntitiesDirty = true;
-                BlockPos pos = chunkRendererTmp.getPosition().add(8, 8, 8);
+                BlockPos pos = chunkRendererTmp.getOrigin().add(8, 8, 8);
                 boolean isNear = pos.getSquaredDistance(viewPos) < 1024.0D;
 
                 if (chunkRendererTmp.needsImmediateUpdate() == false && isNear == false)
@@ -435,30 +415,36 @@ public class WorldRendererSchematic
         }
     }
 
-    public int renderBlockLayer(BlockRenderLayer blockLayerIn, Camera camera)
+    public int renderBlockLayer(RenderLayer renderLayer, MatrixStack matrices, Camera camera)
     {
-        this.world.getProfiler().push("render_block_layer_" + blockLayerIn);
+        this.world.getProfiler().push("render_block_layer_" + renderLayer.toString());
 
-        RenderUtils.disableItemLighting();
+        boolean isTranslucent = renderLayer == RenderLayer.getTranslucent();
 
-        if (blockLayerIn == BlockRenderLayer.TRANSLUCENT)
+        renderLayer.startDrawing();
+        //RenderUtils.disableDiffuseLighting();
+        Vec3d cameraPos = camera.getPos();
+        double x = cameraPos.x;
+        double y = cameraPos.y;
+        double z = cameraPos.z;
+
+        if (isTranslucent)
         {
             this.world.getProfiler().push("translucent_sort");
-            Vec3d pos = camera.getPos();
-            double diffX = pos.x - this.prevRenderSortX;
-            double diffY = pos.y - this.prevRenderSortY;
-            double diffZ = pos.z - this.prevRenderSortZ;
+            double diffX = x - this.lastTranslucentSortX;
+            double diffY = y - this.lastTranslucentSortY;
+            double diffZ = z - this.lastTranslucentSortZ;
 
             if (diffX * diffX + diffY * diffY + diffZ * diffZ > 1.0D)
             {
-                this.prevRenderSortX = pos.x;
-                this.prevRenderSortY = pos.y;
-                this.prevRenderSortZ = pos.z;
+                this.lastTranslucentSortX = x;
+                this.lastTranslucentSortY = y;
+                this.lastTranslucentSortZ = z;
                 int i = 0;
 
                 for (ChunkRendererSchematicVbo chunkRenderer : this.renderInfos)
                 {
-                    if ((chunkRenderer.getChunkRenderData().isBlockLayerStarted(blockLayerIn) ||
+                    if ((chunkRenderer.getChunkRenderData().isBlockLayerStarted(renderLayer) ||
                         (chunkRenderer.getChunkRenderData() != ChunkRenderDataSchematic.EMPTY && chunkRenderer.hasOverlay())) && i++ < 15)
                     {
                         this.renderDispatcher.updateTransparencyLater(chunkRenderer);
@@ -470,7 +456,9 @@ public class WorldRendererSchematic
         }
 
         this.world.getProfiler().push("filter_empty");
-        boolean reverse = blockLayerIn == BlockRenderLayer.TRANSLUCENT;
+        this.world.getProfiler().swap("render");
+
+        boolean reverse = isTranslucent;
         int startIndex = reverse ? this.renderInfos.size() - 1 : 0;
         int stopIndex = reverse ? -1 : this.renderInfos.size();
         int increment = reverse ? -1 : 1;
@@ -478,18 +466,29 @@ public class WorldRendererSchematic
 
         for (int i = startIndex; i != stopIndex; i += increment)
         {
-            ChunkRendererSchematicVbo renderchunk = this.renderInfos.get(i);
+            ChunkRendererSchematicVbo renderer = this.renderInfos.get(i);
 
-            if (renderchunk.getChunkRenderData().isBlockLayerEmpty(blockLayerIn) == false)
+            if (renderer.getChunkRenderData().isBlockLayerEmpty(renderLayer) == false)
             {
+                BlockPos chunkOrigin = renderer.getOrigin();
+                VertexBuffer buffer = renderer.getBlocksVertexBufferByLayer(renderLayer);
+
+                matrices.push();
+                matrices.translate((double) chunkOrigin.getX() - x, (double) chunkOrigin.getY() - y, (double) chunkOrigin.getZ() - z);
+
+                buffer.bind();
+                this.vertexFormat.startDrawing(0L);
+                buffer.draw(matrices.peek().getModel(), GL11.GL_QUADS);
+
+                matrices.pop();
                 ++count;
-                this.renderContainer.addChunkRenderer(renderchunk);
             }
         }
 
-        this.world.getProfiler().swap("render");
-
-        this.renderBlockLayer(blockLayerIn);
+        VertexBuffer.unbind();
+        RenderSystem.clearCurrentColor();
+        this.vertexFormat.endDrawing();
+        renderLayer.endDrawing();
 
         this.world.getProfiler().pop();
         this.world.getProfiler().pop();
@@ -497,125 +496,65 @@ public class WorldRendererSchematic
         return count;
     }
 
-    private void renderBlockLayer(BlockRenderLayer layer)
+    public void renderBlockOverlays(MatrixStack matrices, Camera camera)
     {
-        this.mc.gameRenderer.enableLightmap();
-
-        if (GLX.useVbo())
-        {
-            GlStateManager.enableClientState(GL11.GL_VERTEX_ARRAY);
-            GLX.glClientActiveTexture(GLX.GL_TEXTURE0);
-            GlStateManager.enableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-            GLX.glClientActiveTexture(GLX.GL_TEXTURE1);
-            GlStateManager.enableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-            GLX.glClientActiveTexture(GLX.GL_TEXTURE0);
-            GlStateManager.enableClientState(GL11.GL_COLOR_ARRAY);
-        }
-
-        this.renderContainer.renderChunkLayer(layer);
-
-        if (GLX.useVbo())
-        {
-            for (VertexFormatElement element : VertexFormats.POSITION_COLOR_UV_LMAP.getElements())
-            {
-                VertexFormatElement.Type type = element.getType();
-                int index = element.getIndex();
-
-                switch (type)
-                {
-                    case POSITION:
-                        GlStateManager.disableClientState(GL11.GL_VERTEX_ARRAY);
-                        break;
-                    case UV:
-                        GLX.glClientActiveTexture(GLX.GL_TEXTURE0 + index);
-                        GlStateManager.disableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-                        GLX.glClientActiveTexture(GLX.GL_TEXTURE0);
-                        break;
-                    case COLOR:
-                        GlStateManager.disableClientState(GL11.GL_COLOR_ARRAY);
-                        GlStateManager.clearCurrentColor();
-                    default:
-                }
-            }
-        }
-
-        this.mc.gameRenderer.disableLightmap();
+        this.renderBlockOverlay(OverlayRenderType.OUTLINE, matrices, camera);
+        this.renderBlockOverlay(OverlayRenderType.QUAD, matrices, camera);
     }
 
-    public void renderBlockOverlays()
+    private void renderBlockOverlay(OverlayRenderType type, MatrixStack matrices, Camera camera)
     {
-        this.renderBlockOverlay(OverlayRenderType.OUTLINE);
-        this.renderBlockOverlay(OverlayRenderType.QUAD);
-    }
+        //RenderLayer renderLayer = RenderLayer.getTranslucent();
+        //renderLayer.startDrawing();
+        //RenderSystem.disableTexture();
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
 
-    private void renderBlockOverlay(OverlayRenderType type)
-    {
+        Vec3d cameraPos = camera.getPos();
+        double x = cameraPos.x;
+        double y = cameraPos.y;
+        double z = cameraPos.z;
+
         this.world.getProfiler().push("overlay_" + type.name());
-        this.world.getProfiler().push("filter_empty");
+        this.world.getProfiler().swap("render");
 
         for (int i = this.renderInfos.size() - 1; i >= 0; --i)
         {
-            ChunkRendererSchematicVbo chunkRenderer = this.renderInfos.get(i);
+            ChunkRendererSchematicVbo renderer = this.renderInfos.get(i);
 
-            if (chunkRenderer.getChunkRenderData() != ChunkRenderDataSchematic.EMPTY && chunkRenderer.hasOverlay())
+            if (renderer.getChunkRenderData() != ChunkRenderDataSchematic.EMPTY && renderer.hasOverlay())
             {
-                ChunkRenderDataSchematic compiledChunk = chunkRenderer.getChunkRenderData();
+                ChunkRenderDataSchematic compiledChunk = renderer.getChunkRenderData();
 
                 if (compiledChunk.isOverlayTypeEmpty(type) == false)
                 {
-                    this.renderContainer.addOverlayChunk(chunkRenderer);
+                    BlockPos chunkOrigin = renderer.getOrigin();
+                    VertexBuffer buffer = renderer.getOverlayVertexBuffer(type);
+
+                    matrices.push();
+                    matrices.translate((double) chunkOrigin.getX() - x, (double) chunkOrigin.getY() - y, (double) chunkOrigin.getZ() - z);
+
+                    buffer.bind();
+                    VertexFormats.POSITION_COLOR.startDrawing(0L);
+                    buffer.draw(matrices.peek().getModel(), type.getGlMode());
+
+                    matrices.pop();
                 }
             }
         }
 
-        this.world.getProfiler().swap("render");
+        VertexBuffer.unbind();
+        RenderSystem.clearCurrentColor();
+        VertexFormats.POSITION_COLOR.endDrawing();
 
-        this.renderBlockOverlayBuffers(type);
+        RenderSystem.disableBlend();
+        //RenderSystem.enableTexture();
+        //renderLayer.endDrawing();
 
-        this.world.getProfiler().pop();
         this.world.getProfiler().pop();
     }
 
-    private void renderBlockOverlayBuffers(OverlayRenderType type)
-    {
-        this.mc.gameRenderer.enableLightmap();
-
-        if (GLX.useVbo())
-        {
-            GlStateManager.enableClientState(GL11.GL_VERTEX_ARRAY);
-            GlStateManager.enableClientState(GL11.GL_COLOR_ARRAY);
-        }
-
-        this.renderContainer.renderBlockOverlays(type);
-
-        if (GLX.useVbo())
-        {
-            for (VertexFormatElement element : VertexFormats.POSITION_COLOR.getElements())
-            {
-                VertexFormatElement.Type usage = element.getType();
-
-                switch (usage)
-                {
-                    case POSITION:
-                        GlStateManager.disableClientState(GL11.GL_VERTEX_ARRAY);
-                        break;
-                    case UV:
-                        GLX.glClientActiveTexture(GLX.GL_TEXTURE0 + element.getIndex());
-                        GlStateManager.disableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-                        GLX.glClientActiveTexture(GLX.GL_TEXTURE0);
-                        break;
-                    case COLOR:
-                        GlStateManager.disableClientState(GL11.GL_COLOR_ARRAY);
-                        GlStateManager.clearCurrentColor();
-                    default:
-                }
-            }
-        }
-
-        this.mc.gameRenderer.disableLightmap();
-    }
-
-    public boolean renderBlock(ExtendedBlockView world, BlockState state, BlockPos pos, BufferBuilder bufferBuilderIn)
+    public boolean renderBlock(BlockRenderView world, BlockState state, BlockPos pos, MatrixStack matrices, BufferBuilder bufferBuilderIn)
     {
         try
         {
@@ -630,7 +569,7 @@ public class WorldRendererSchematic
                 switch (renderType)
                 {
                     case MODEL:
-                        return this.blockModelRenderer.renderModel(world, this.getModelForState(state), state, pos, bufferBuilderIn, state.getRenderingSeed(pos));
+                        return this.blockModelRenderer.renderModel(world, this.getModelForState(state), state, pos, matrices, bufferBuilderIn, state.getRenderingSeed(pos));
                     case ENTITYBLOCK_ANIMATED:
                         return false;
                     default:
@@ -647,9 +586,9 @@ public class WorldRendererSchematic
         }
     }
 
-    public boolean renderFluid(ExtendedBlockView world, FluidState state, BlockPos pos, BufferBuilder bufferBuilderIn)
+    public boolean renderFluid(BlockRenderView world, FluidState state, BlockPos pos, BufferBuilder bufferBuilderIn)
     {
-        return this.blockRenderManager.tesselateFluid(pos, world, bufferBuilderIn, state);
+        return this.blockRenderManager.renderFluid(pos, world, bufferBuilderIn, state);
     }
 
     public BakedModel getModelForState(BlockState state)
@@ -657,7 +596,7 @@ public class WorldRendererSchematic
         return this.blockRenderManager.getModel(state);
     }
 
-    public void renderEntities(Camera camera, VisibleRegion visibleRegion, float partialTicks)
+    public void renderEntities(Camera camera, Frustum frustum, MatrixStack matrices, float partialTicks)
     {
         if (this.renderEntitiesStartupCounter > 0)
         {
@@ -671,114 +610,53 @@ public class WorldRendererSchematic
             double cameraY = camera.getPos().y;
             double cameraZ = camera.getPos().z;
 
-            BlockEntityRenderDispatcher.INSTANCE.configure(this.world, this.mc.getTextureManager(), this.mc.textRenderer, camera, this.mc.hitResult);
-            this.entityRenderDispatcher.configure(this.world, this.mc.textRenderer, camera, this.mc.targetedEntity, this.mc.options);
+            BlockEntityRenderDispatcher.INSTANCE.configure(this.world, this.mc.getTextureManager(), this.mc.textRenderer, camera, this.mc.crosshairTarget);
+            this.entityRenderDispatcher.configure(this.world, camera, this.mc.targetedEntity);
 
             this.countEntitiesTotal = 0;
             this.countEntitiesRendered = 0;
             this.countEntitiesHidden = 0;
 
-            BlockEntityRenderDispatcher.renderOffsetX = cameraX;
-            BlockEntityRenderDispatcher.renderOffsetY = cameraY;
-            BlockEntityRenderDispatcher.renderOffsetZ = cameraZ;
-
-            this.entityRenderDispatcher.setRenderPosition(cameraX, cameraY, cameraZ);
-
-            this.mc.gameRenderer.enableLightmap();
             this.countEntitiesTotal = this.world.getRegularEntityCount();
 
             this.world.getProfiler().swap("regular_entities");
-            List<Entity> entitiesMultipass = Lists.<Entity>newArrayList();
+            //List<Entity> entitiesMultipass = Lists.<Entity>newArrayList();
+
+            VertexConsumerProvider.Immediate entityVertexConsumers = this.bufferBuilders.getEntityVertexConsumers();
+            DiffuseLighting.enableForLevel(matrices.peek().getModel());
             LayerRange layerRange = DataManager.getRenderLayerRange();
 
             for (ChunkRendererSchematicVbo chunkRenderer : this.renderInfos)
             {
-                BlockPos pos = chunkRenderer.getPosition();
-                WorldChunk chunk = (WorldChunk) this.world.getChunk(pos);
+                BlockPos pos = chunkRenderer.getOrigin();
+                WorldChunk chunk = (WorldChunk) this.world.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
                 TypeFilterableList<Entity> list = chunk.getEntitySectionArray()[pos.getY() >> 4];
 
                 if (list.isEmpty() == false)
                 {
                     for (Entity entityTmp : list)
                     {
-                        if (layerRange.isPositionWithinRange((int) entityTmp.x, (int) entityTmp.y, (int) entityTmp.z) == false)
+                        if (layerRange.isPositionWithinRange((int) entityTmp.getX(), (int) entityTmp.getY(), (int) entityTmp.getZ()) == false)
                         {
                             continue;
                         }
 
-                        boolean shouldRender = this.entityRenderDispatcher.shouldRender(entityTmp, visibleRegion, cameraX, cameraY, cameraZ);
+                        boolean shouldRender = this.entityRenderDispatcher.shouldRender(entityTmp, frustum, cameraX, cameraY, cameraZ);
 
                         if (shouldRender)
                         {
+                            double x = entityTmp.getX() - cameraX;
+                            double y = entityTmp.getY() - cameraY;
+                            double z = entityTmp.getZ() - cameraZ;
+
+                            this.entityRenderDispatcher.render(entityTmp, x, y, z, entityTmp.yaw, partialTicks, matrices, entityVertexConsumers, this.entityRenderDispatcher.getLight(entityTmp, partialTicks));
                             ++this.countEntitiesRendered;
-                            this.entityRenderDispatcher.render(entityTmp, 0f, false);
-
-                            /*
-                            if (this.isOutlineActive(entityTmp, entity, camera))
-                            {
-                                entitiesOutlined.add(entityTmp);
-                            }
-                            */
-
-                            if (this.entityRenderDispatcher.hasSecondPass(entityTmp))
-                            {
-                                entitiesMultipass.add(entityTmp);
-                            }
                         }
                     }
                 }
             }
 
-            if (entitiesMultipass.isEmpty() == false)
-            {
-                for (Entity entityTmp : entitiesMultipass)
-                {
-                    this.entityRenderDispatcher.renderSecondPass(entityTmp, partialTicks);
-                }
-            }
-
-            /*
-            if (this.isRenderEntityOutlines() && (entitiesOutlined.isEmpty() == false || this.entityOutlinesRendered))
-            {
-                this.world.profiler.endStartSection("entityOutlines");
-                this.entityOutlineFramebuffer.framebufferClear();
-                this.entityOutlinesRendered = entitiesOutlined.isEmpty() == false;
-
-                if (!entitiesOutlined.isEmpty())
-                {
-                    GlStateManager.depthFunc(519);
-                    GlStateManager.disableFog();
-                    this.entityOutlineFramebuffer.bindFramebuffer(false);
-                    RenderUtils.disableItemLighting();
-                    this.renderManager.setRenderOutlines(true);
-
-                    for (int i = 0; i < entitiesOutlined.size(); ++i)
-                    {
-                        this.renderManager.renderEntityStatic(entitiesOutlined.get(i), partialTicks, false);
-                    }
-
-                    this.renderManager.setRenderOutlines(false);
-                    RenderUtils.enableItemLighting();
-                    GlStateManager.depthMask(false);
-
-                    this.entityOutlineShader.render(partialTicks);
-
-                    GlStateManager.enableLighting();
-                    GlStateManager.depthMask(true);
-                    GlStateManager.enableFog();
-                    GlStateManager.enableBlend();
-                    GlStateManager.enableColorMaterial();
-                    GlStateManager.depthFunc(515);
-                    GlStateManager.enableDepth();
-                    GlStateManager.enableAlpha();
-                }
-
-                this.mc.getFramebuffer().bindFramebuffer(false);
-            }
-            */
-
             this.world.getProfiler().swap("block_entities");
-            fi.dy.masa.malilib.render.RenderUtils.enableItemLighting();
 
             for (ChunkRendererSchematicVbo chunkRenderer : this.renderInfos)
             {
@@ -787,8 +665,8 @@ public class WorldRendererSchematic
 
                 if (tiles.isEmpty() == false) 
                 {
-                    BlockPos pos = chunkRenderer.getPosition();
-                    ChunkSchematic chunk = this.world.getChunkProvider().getChunk(pos.getX() >> 4, pos.getZ() >> 4);
+                    BlockPos chunkOrigin = chunkRenderer.getOrigin();
+                    ChunkSchematic chunk = this.world.getChunkProvider().getChunk(chunkOrigin.getX() >> 4, chunkOrigin.getZ() >> 4);
 
                     if (chunk != null && data instanceof ChunkRenderDataSchematic &&
                         data.getTimeBuilt() >= chunk.getTimeCreated())
@@ -797,7 +675,13 @@ public class WorldRendererSchematic
                         {
                             try
                             {
-                                BlockEntityRenderDispatcher.INSTANCE.render(tiles.get(i), partialTicks, -1);
+                                BlockPos pos = te.getPos();
+                                matrices.push();
+                                matrices.translate(pos.getX() - cameraX, pos.getY() - cameraY, pos.getZ() - cameraZ);
+
+                                BlockEntityRenderDispatcher.INSTANCE.render(te, partialTicks, matrices, entityVertexConsumers);
+
+                                matrices.pop();
                             }
                             catch (Exception e)
                             {
@@ -813,7 +697,13 @@ public class WorldRendererSchematic
                 {
                     try
                     {
-                        BlockEntityRenderDispatcher.INSTANCE.render(te, partialTicks, -1);
+                        BlockPos pos = te.getPos();
+                        matrices.push();
+                        matrices.translate(pos.getX() - cameraX, pos.getY() - cameraY, pos.getZ() - cameraZ);
+
+                        BlockEntityRenderDispatcher.INSTANCE.render(te, partialTicks, matrices, entityVertexConsumers);
+
+                        matrices.pop();
                     }
                     catch (Exception e)
                     {
@@ -821,7 +711,6 @@ public class WorldRendererSchematic
                 }
             }
 
-            this.mc.gameRenderer.disableLightmap();
             this.world.getProfiler().pop();
         }
     }

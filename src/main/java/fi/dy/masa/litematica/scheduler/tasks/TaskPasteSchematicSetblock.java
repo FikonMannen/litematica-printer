@@ -165,7 +165,7 @@ public class TaskPasteSchematicSetblock extends TaskBase implements IInfoHudRend
         {
             if (this.mc.player != null)
             {
-                this.comparator.setReferencePosition(new BlockPos(this.mc.player));
+                this.comparator.setReferencePosition(fi.dy.masa.malilib.util.PositionUtils.getEntityBlockPos(this.mc.player));
                 Collections.sort(this.chunks, this.comparator);
             }
 
@@ -271,7 +271,7 @@ public class TaskPasteSchematicSetblock extends TaskBase implements IInfoHudRend
                 String nbtString = nbt.toString();
                 */
 
-                String strCommand = String.format("/summon %s %f %f %f", id, entity.x, entity.y, entity.z);
+                String strCommand = String.format("/summon %s %f %f %f", id, entity.getX(), entity.getY(), entity.getZ());
                 /*
                 String strCommand = String.format("/summon %s %f %f %f %s", entityName, entity.posX, entity.posY, entity.posZ, nbtString);
                 System.out.printf("entity: %s\n", entity);

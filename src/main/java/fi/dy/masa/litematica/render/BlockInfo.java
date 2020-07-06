@@ -1,18 +1,19 @@
 package fi.dy.masa.litematica.render;
 
 import java.util.List;
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.registry.Registry;
 import fi.dy.masa.litematica.util.ItemUtils;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.BlockUtils;
 import fi.dy.masa.malilib.util.StringUtils;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.registry.Registry;
 
 public class BlockInfo
 {
@@ -58,11 +59,11 @@ public class BlockInfo
         return this.totalHeight;
     }
 
-    public void render(int x, int y, MinecraftClient mc)
+    public void render(int x, int y, MinecraftClient mc, MatrixStack matrixStack)
     {
         if (this.state != null)
         {
-            GlStateManager.pushMatrix();
+            RenderSystem.pushMatrix();
 
             RenderUtils.drawOutlinedBox(x, y, this.totalWidth, this.totalHeight, 0xFF000000, GuiBase.COLOR_HORIZONTAL_BAR);
 
@@ -70,31 +71,31 @@ public class BlockInfo
             int x1 = x + 10;
             y += 4;
 
-            textRenderer.draw(this.title, x1, y, 0xFFFFFFFF);
+            textRenderer.draw(matrixStack, this.title, x1, y, 0xFFFFFFFF);
 
             y += 12;
 
-            GlStateManager.disableLighting();
-            RenderUtils.enableGuiItemLighting();
+            RenderSystem.disableLighting();
+            RenderUtils.enableDiffuseLightingGui3D();
 
             //mc.getRenderItem().zLevel += 100;
             RenderUtils.drawRect(x1, y, 16, 16, 0x20FFFFFF); // light background for the item
-            mc.getItemRenderer().renderGuiItem(mc.player, this.stack, x1, y);
+            mc.getItemRenderer().renderInGui(this.stack, x1, y);
             mc.getItemRenderer().renderGuiItemOverlay(textRenderer, this.stack, x1, y, null);
             //mc.getRenderItem().zLevel -= 100;
 
-            //GlStateManager.disableBlend();
-            RenderUtils.disableItemLighting();
+            //RenderSystem.disableBlend();
+            RenderUtils.disableDiffuseLighting();
 
-            textRenderer.draw(this.stackName, x1 + 20, y + 4, 0xFFFFFFFF);
+            textRenderer.draw(matrixStack, this.stackName, x1 + 20, y + 4, 0xFFFFFFFF);
 
             y += 20;
-            textRenderer.draw(this.blockRegistryname, x1, y, 0xFF4060FF);
+            textRenderer.draw(matrixStack, this.blockRegistryname, x1, y, 0xFF4060FF);
             y += textRenderer.fontHeight + 4;
 
-            RenderUtils.renderText(x1, y, 0xFFB0B0B0, this.props);
+            RenderUtils.renderText(x1, y, 0xFFB0B0B0, this.props, matrixStack);
 
-            GlStateManager.popMatrix();
+            RenderSystem.popMatrix();
         }
     }
 }
