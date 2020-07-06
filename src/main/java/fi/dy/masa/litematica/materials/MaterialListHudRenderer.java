@@ -2,7 +2,10 @@ package fi.dy.masa.litematica.materials;
 
 import java.util.Collections;
 import java.util.List;
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.util.math.MatrixStack;
 import fi.dy.masa.litematica.config.Configs;
 import fi.dy.masa.litematica.render.infohud.IInfoHudRenderer;
 import fi.dy.masa.litematica.render.infohud.RenderPhase;
@@ -11,8 +14,6 @@ import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.GuiUtils;
 import fi.dy.masa.malilib.util.StringUtils;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
 
 public class MaterialListHudRenderer implements IInfoHudRenderer
 {
@@ -57,7 +58,7 @@ public class MaterialListHudRenderer implements IInfoHudRenderer
     }
 
     @Override
-    public int render(int xOffset, int yOffset, HudAlignment alignment)
+    public int render(int xOffset, int yOffset, HudAlignment alignment, MatrixStack matrixStack)
     {
         MinecraftClient mc = MinecraftClient.getInstance();
         long currentTime = System.currentTimeMillis();
@@ -105,12 +106,12 @@ public class MaterialListHudRenderer implements IInfoHudRenderer
         for (int i = 0; i < size; ++i)
         {
             MaterialListEntry entry = list.get(i);
-            maxTextLength = Math.max(maxTextLength, font.getStringWidth(entry.getStack().getName().getString()));
+            maxTextLength = Math.max(maxTextLength, font.getWidth(entry.getStack().getName().getString()));
             int multiplier = this.materialList.getMultiplier();
             int count = multiplier == 1 ? entry.getCountMissing() - entry.getCountAvailable() : entry.getCountTotal();
             count *= multiplier;
             String strCount = GuiBase.TXT_RED + this.getFormattedCountString(count, entry.getStack().getMaxCount()) + GuiBase.TXT_RST;
-            maxCountLength = Math.max(maxCountLength, font.getStringWidth(strCount));
+            maxCountLength = Math.max(maxCountLength, font.getWidth(strCount));
         }
 
         final int maxLineLength = maxTextLength + maxCountLength + 30;
@@ -137,8 +138,8 @@ public class MaterialListHudRenderer implements IInfoHudRenderer
 
         if (scale != 1d)
         {
-            GlStateManager.pushMatrix();
-            GlStateManager.scaled(scale, scale, scale);
+            RenderSystem.pushMatrix();
+            RenderSystem.scaled(scale, scale, scale);
         }
 
         if (useBackground)
@@ -151,11 +152,11 @@ public class MaterialListHudRenderer implements IInfoHudRenderer
 
         if (useShadow)
         {
-            font.drawWithShadow(title, posX + 2, posY + 2, textColor);
+            font.drawWithShadow(matrixStack, title, posX + 2, posY + 2, textColor);
         }
         else
         {
-            font.draw(title, posX + 2, posY + 2, textColor);
+            font.draw(matrixStack, title, posX + 2, posY + 2, textColor);
         }
 
         posY += 12;
@@ -171,18 +172,18 @@ public class MaterialListHudRenderer implements IInfoHudRenderer
             int count = multiplier == 1 ? entry.getCountMissing() - entry.getCountAvailable() : entry.getCountTotal();
             count *= multiplier;
             String strCount = this.getFormattedCountString(count, entry.getStack().getMaxCount());
-            int cntLen = font.getStringWidth(strCount);
+            int cntLen = font.getWidth(strCount);
             int cntPosX = posX + maxLineLength - cntLen - 2;
 
             if (useShadow)
             {
-                font.drawWithShadow(text, x, y, textColor);
-                font.drawWithShadow(strCount, cntPosX, y, itemCountTextColor);
+                font.drawWithShadow(matrixStack, text, x, y, textColor);
+                font.drawWithShadow(matrixStack, strCount, cntPosX, y, itemCountTextColor);
             }
             else
             {
-                font.draw(text, x, y, textColor);
-                font.draw(strCount, cntPosX, y, itemCountTextColor);
+                font.draw(matrixStack, text, x, y, textColor);
+                font.draw(matrixStack, strCount, cntPosX, y, itemCountTextColor);
             }
 
             y += lineHeight;
@@ -191,23 +192,23 @@ public class MaterialListHudRenderer implements IInfoHudRenderer
         x = posX;
         y = posY;
 
-        GlStateManager.enableRescaleNormal();
+        RenderSystem.enableRescaleNormal();
         RenderUtils.setupBlend();
-        RenderUtils.enableGuiItemLighting();
+        RenderUtils.enableDiffuseLightingGui3D();
 
         for (int i = 0; i < size; ++i)
         {
-            mc.getItemRenderer().renderGuiItem(mc.player, list.get(i).getStack(), x, y);
+            mc.getItemRenderer().renderInGui(list.get(i).getStack(), x, y);
             y += lineHeight;
         }
 
-        RenderUtils.disableItemLighting();
-        GlStateManager.disableRescaleNormal();
-        GlStateManager.disableBlend();
+        RenderUtils.disableDiffuseLighting();
+        RenderSystem.disableRescaleNormal();
+        RenderSystem.disableBlend();
 
         if (scale != 1d)
         {
-            GlStateManager.popMatrix();
+            RenderSystem.popMatrix();
         }
 
         return contentHeight + 4;

@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import javax.annotation.Nullable;
 
 import com.google.common.collect.ImmutableMap;
@@ -269,7 +270,7 @@ public class WorldUtils {
 
             StructurePlacementData placementSettings = new StructurePlacementData();
             placementSettings.setIgnoreEntities(ignoreEntities);
-            template.method_15172(world, BlockPos.ORIGIN, placementSettings, 0x12);
+            template.place(world, BlockPos.ORIGIN, BlockPos.ORIGIN, placementSettings, new Random(), 0x12);
 
             String subRegionName = FileUtils.getNameWithoutExtension(structureFileName) + " (Converted Structure)";
             AreaSelection area = new AreaSelection();
@@ -367,7 +368,7 @@ public class WorldUtils {
                                                                             // more speed
 
         Structure template = new Structure();
-        template.method_15174(world, BlockPos.ORIGIN, size, ignoreEntities == false, Blocks.STRUCTURE_VOID); // takeBlocksFromWorld
+        template.saveFromWorld(world, BlockPos.ORIGIN, size, ignoreEntities == false, Blocks.STRUCTURE_VOID);
 
         return template;
     }
@@ -421,9 +422,10 @@ public class WorldUtils {
         return template;
     }
 
-    public static boolean isClientChunkLoaded(ClientWorld world, int chunkX, int chunkZ) {
-        return ((ClientChunkManager) world.getChunkManager()).method_2857(chunkX, chunkZ, ChunkStatus.FULL,
-                false) != null;
+
+    public static boolean isClientChunkLoaded(ClientWorld world, int chunkX, int chunkZ)
+    {
+        return ((ClientChunkManager) world.getChunkManager()).getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) != null;
     }
 
     public static void loadChunksSchematicWorld(WorldSchematic world, BlockPos origin, Vec3i areaSize) {
@@ -1199,8 +1201,6 @@ public class WorldUtils {
      * returned to indicate that the use action should be cancelled.
      * 
      * @param mc
-     * @param doEasyPlace
-     * @param restrictPlacement
      * @return
      */
     public static boolean handlePlacementRestriction(MinecraftClient mc) {
@@ -1220,12 +1220,16 @@ public class WorldUtils {
      * returned to indicate that the use action should be cancelled.
      * 
      * @param mc
-     * @param doEasyPlace
-     * @param restrictPlacement
      * @return true if the use action should be cancelled
      */
+<<<<<<< HEAD
     private static boolean placementRestrictionInEffect(MinecraftClient mc) {
         HitResult trace = mc.hitResult;
+=======
+    private static boolean placementRestrictionInEffect(MinecraftClient mc)
+    {
+        HitResult trace = mc.crosshairTarget;
+>>>>>>> 97e6b06e4aec4f6b851f812843b798ed8f671850
 
         ItemStack stack = mc.player.getMainHandStack();
 

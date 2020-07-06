@@ -190,13 +190,13 @@ public class EntityUtils
         }
         else
         {
-            if (nbt.containsKey("Passengers", Constants.NBT.TAG_LIST))
+            if (nbt.contains("Passengers", Constants.NBT.TAG_LIST))
             {
                 ListTag taglist = nbt.getList("Passengers", Constants.NBT.TAG_COMPOUND);
 
                 for (int i = 0; i < taglist.size(); ++i)
                 {
-                    Entity passenger = createEntityAndPassengersFromNBT(taglist.getCompoundTag(i), world);
+                    Entity passenger = createEntityAndPassengersFromNBT(taglist.getCompound(i), world);
 
                     if (passenger != null)
                     {
@@ -215,9 +215,34 @@ public class EntityUtils
         {
             for (Entity passenger : entity.getPassengerList())
             {
-                passenger.setPosition(entity.x, entity.y + entity.getMountedHeightOffset() + passenger.getHeightOffset(), entity.z);
+                passenger.refreshPositionAndAngles(
+                        entity.getX(),
+                        entity.getY() + entity.getMountedHeightOffset() + passenger.getHeightOffset(),
+                        entity.getZ(),
+                        passenger.yaw, passenger.pitch);
+                setEntityRotations(passenger, passenger.yaw, passenger.pitch);
                 spawnEntityAndPassengersInWorld(passenger, world);
             }
+        }
+    }
+
+    public static void setEntityRotations(Entity entity, float yaw, float pitch)
+    {
+        entity.yaw = yaw;
+        entity.prevYaw = yaw;
+
+        entity.pitch = pitch;
+        entity.prevPitch = pitch;
+
+        if (entity instanceof LivingEntity)
+        {
+            LivingEntity livingBase = (LivingEntity) entity;
+            livingBase.headYaw = yaw;
+            livingBase.bodyYaw = yaw;
+            livingBase.prevHeadYaw = yaw;
+            livingBase.prevBodyYaw = yaw;
+            //livingBase.renderYawOffset = yaw;
+            //livingBase.prevRenderYawOffset = yaw;
         }
     }
 
